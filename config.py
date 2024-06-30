@@ -16,18 +16,23 @@ class Config:
     time_step = 10
 
     epochs = 150
-    batch_size = 256
+    batch_size = 64
     ################################################
     #               Model Achitecture              #
     ################################################
-   
+    # model type could be set to : 'snn'
+    model_type = 'snn'
+
+    n_outputs = 20 if dataset == 'shd' else 35
 
 
     ################################################
     #                Optimization                  #
     ################################################
+    
+    optimizer_w = 'adam'
 
-
+    lr_w = 1e-3
 
 
     ################################################

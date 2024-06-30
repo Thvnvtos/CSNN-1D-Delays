@@ -1,0 +1,4 @@
+torch>=2.0.0+cu118
+spikingjelly>=0.0.0.0.15
+dcls>=0.1.1
+h5py>=3.11.0

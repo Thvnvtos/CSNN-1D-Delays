@@ -1,0 +1,3 @@
+
+
+class SNN(Model)
