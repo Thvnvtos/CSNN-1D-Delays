@@ -1,5 +1,5 @@
 # CSNN-1D-Delays
-Addind delays to 1D convolutional SNNs using DCLS2-1D
+Adding delays to 1D convolutional SNNs using DCLS2-1D
 
 ### Project progress:
 - Repository just started, files are mostly empty only showing structure of project.
