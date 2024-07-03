@@ -33,10 +33,16 @@ class Config:
     stateful_synapse = False
     stateful_synapse_learnable = False
 
-
+    
     n_inputs = 700
-    n_hidden_layers = 2
-    n_hidden_neurons = 256 
+    n_C = 16                                # base number of conv channels
+
+    n_layers = 3
+    kernel_sizes = [5, 2, 2]
+    strides = [5, 2, 2]
+    channels = [n_C, 2*n_C, 2*n_C]
+
+    n_FC = 128 
     n_outputs = 20 if dataset == 'shd' else 35
 
     dropout_p = 0.4
