@@ -18,12 +18,12 @@ class Config:
     time_step = 10
 
     epochs = 20
-    batch_size = 64
+    batch_size = 128
     ################################################
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'snn'                      # model type could be set to : 'snn'
+    model_type = 'csnn-1d'                      # model type could be set to : 'csnn-1d'
 
 
     spiking_neuron_type = 'lif'             # plif, lif
@@ -37,15 +37,13 @@ class Config:
     n_inputs = 700
     n_C = 16                                # base number of conv channels
 
-    n_layers = 3
-    kernel_sizes = [5, 2, 2]
-    strides = [5, 2, 2]
-    channels = [n_C, 2*n_C, 2*n_C]
+    n_layers = 4
+    kernel_sizes = [5, 5, 2, 2]
+    strides = [5, 5, 2, 2]
+    channels = [n_C, 2*n_C, 4*n_C, 8*n_C]
 
-    n_FC = 128 
     n_outputs = 20 if dataset == 'shd' else 35
 
-    dropout_p = 0.4
     use_batchnorm = True
     bias = False
     detach_reset = True
