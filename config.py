@@ -23,7 +23,7 @@ class Config:
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'csnn-1d'                      # model type could be set to : 'csnn-1d'
+    model_type = 'csnn-1d-delays'           # model type could be set to : 'csnn-1d', 'csnn-1d-delays'
 
 
     spiking_neuron_type = 'lif'             # plif, lif
@@ -73,8 +73,24 @@ class Config:
     ################################################
     #                    Delays                    #
     ################################################
-    
+    DCLSversion = 'gauss' if model_type =='csnn-1d-delays' else 'max'
+    decrease_sig_method = 'exp'
+    kernel_count = 1
 
+    max_delay = 200//time_step
+    max_delay = max_delay if max_delay%2==1 else max_delay+1 # to make kernel_size an odd number
+    
+    # For constant sigma without the decreasing policy, set model_type == 'snn_delays' and sigInit = 0.23 and final_epoch = 0
+    sigInit = max_delay // 2        if model_type == 'csnn-1d-delays' else 0
+    final_epoch = (1*epochs)//4     if model_type == 'csnn-1d-delays' else 0
+
+
+    left_padding = max_delay-1
+    right_padding = 0#(max_delay-1) // 2
+
+    init_pos_method = 'uniform'
+    init_pos_a = -max_delay//2
+    init_pos_b = max_delay//2
 
 
     ################################################
