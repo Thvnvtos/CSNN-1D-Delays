@@ -23,7 +23,7 @@ class Config:
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'csnn-1d'           # model type could be set to : 'csnn-1d', 'csnn-1d-delays'
+    model_type = 'csnn-1d-delays'           # model type could be set to : 'csnn-1d', 'csnn-1d-delays'
 
 
     spiking_neuron_type = 'lif'             # plif, lif
@@ -66,6 +66,7 @@ class Config:
     optimizer_w = 'adam'
 
     lr_w = 1e-3
+    lr_pos = 100*lr_w   if model_type =='csnn-1d-delays' else 0
 
     weight_decay = 1e-5
 

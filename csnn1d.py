@@ -91,7 +91,7 @@ class CSNN1d(Model):
                 self.weights_conv.append(m.weight)
                 if self.config.bias:
                     self.weights_conv.append(m.bias)
-            if isinstance(m, layer.Linear):
+            elif isinstance(m, layer.Linear):
                 self.weights_fc.append(m.weight)
                 if self.config.bias:
                     self.weights_fc.append(m.bias)

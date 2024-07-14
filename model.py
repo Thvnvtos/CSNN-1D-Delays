@@ -62,10 +62,12 @@ class Model(nn.Module):
                 loss_batch.append(loss.detach().cpu().item())
                 metric_batch.append(metric)
 
-                self.reset_model()
+                self.reset_model(train=True)
                 
             loss_epochs['train'].append(np.mean(loss_batch))
             metric_epochs['train'].append(np.mean(metric_batch))
+
+            self.decrease_sig(epoch)
 
             ##################################    Eval Loop    ##################################
 
@@ -114,7 +116,7 @@ class Model(nn.Module):
                 loss_batch.append(loss.detach().cpu().item())
                 metric_batch.append(metric)
 
-                self.reset_model()
+                self.reset_model(train=False)
 
         
         return np.mean(loss_batch), np.mean(metric_batch)

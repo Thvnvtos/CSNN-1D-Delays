@@ -88,15 +88,24 @@ class CSNN1d_Delays(Model):
 
         self.model = nn.Sequential(*[m for b in self.blocks for m in b])
 
-        self.weights = []
+
+        self.weights_conv = []
+        self.delay_positions = []
+        self.weights_fc = []
+
         self.weights_bn = []
         self.weights_plif = []
+        
         for m in self.model.modules():
-            if isinstance(m, layer.Conv1d):
-                self.positions.append(m.P)
-                self.weights.append(m.weight)
+            if isinstance(m, Dcls2_1d):
+                self.delay_positions.append(m.P)
+                self.weights_conv.append(m.weight)
                 if self.config.bias:
-                    self.weights_bn.append(m.bias)
+                    self.weights_conv.append(m.bias)
+            elif isinstance(m, layer.Linear):
+                self.weights_fc.append(m.weight)
+                if self.config.bias:
+                    self.weights_fc.append(m.bias)
             elif isinstance(m, nn.BatchNorm2d):
                 self.weights_bn.append(m.weight)
                 self.weights_bn.append(m.bias)
@@ -114,7 +123,6 @@ class CSNN1d_Delays(Model):
 
         for i in range(self.config.n_layers):
             l = self.blocks[i]
-            print(x.size())
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)          # add 0 padding following the time dimension
             x = l[0](x)                         # Apply the conv x size = (Batch, Channels, Neurons, Time)
             x = l[1](x)                         # Apply Batchnorm
@@ -137,49 +145,63 @@ class CSNN1d_Delays(Model):
 
 
 
+
     def init_parameters(self):
         set_seed(self.config.seed)
-        self.mask = []
-
-        if self.config.init_w_method == 'kaiming_uniform':
-            for i in range(self.config.n_hidden_layers+1):
-                # can you replace with self.weights ?
-                torch.nn.init.kaiming_uniform_(self.blocks[i][0][0].weight, nonlinearity='relu')
-                
-                if self.config.sparsity_p > 0:
-                    with torch.no_grad():
-                        self.mask.append(torch.rand(self.blocks[i][0][0].weight.size()).to(self.blocks[i][0][0].weight.device))
-                        self.mask[i][self.mask[i]>self.config.sparsity_p]=1
-                        self.mask[i][self.mask[i]<=self.config.sparsity_p]=0
-                        #self.blocks[i][0][0].weight = torch.nn.Parameter(self.blocks[i][0][0].weight * self.mask[i])
-                        self.blocks[i][0][0].weight *= self.mask[i]
 
 
+        ###################################   Weights Init   ######################################
+
+
+
+        ###################################   Delay positions Init   ##############################
         if self.config.init_pos_method == 'uniform':
-            for i in range(self.config.n_hidden_layers+1):
-                # can you replace with self.positions?
-                torch.nn.init.uniform_(self.blocks[i][0][0].P, a = self.config.init_pos_a, b = self.config.init_pos_b)
-                self.blocks[i][0][0].clamp_parameters()
-
-                if self.config.model_type == 'snn_delays_lr0':
-                    self.blocks[i][0][0].P.requires_grad = False
-
-        for i in range(self.config.n_hidden_layers+1):
-            # can you replace with self.positions?
-            torch.nn.init.constant_(self.blocks[i][0][0].SIG, self.config.sigInit)
-            self.blocks[i][0][0].SIG.requires_grad = False
+            for i in range(self.config.n_layers):
+                torch.nn.init.uniform_(self.blocks[i][0].P, a = self.config.init_pos_a, b = self.config.init_pos_b)
+                self.blocks[i][0].clamp_parameters()
 
 
-    def reset_model(self):
-        # you can add sparsity mask in here
+        ##################################   SIG Init   ############################
+
+        for i in range(self.config.n_layers):
+            torch.nn.init.constant_(self.blocks[i][0].SIG, self.config.sigInit)
+            self.blocks[i][0].SIG.requires_grad = False
+
+
+
+
+    def reset_model(self, train=True):
+        # Reset Spiking neurons dynamics
         functional.reset_net(self)
+
+        #Clamp parameters of DCLS2-1D modules
+        if train:
+            for i in range(self.config.n_layers):
+                self.blocks[i][0].clamp_parameters()
+
+
+    def decrease_sig(self, epoch):
+        # Decreasing to 0.23 instead of 0.5
+                                                          
+        sig = self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()                      # Get current SIG value
+        if self.config.decrease_sig_method == 'exp':
+            if epoch < self.config.final_epoch and sig > 0.23:
+                alpha = 0 
+                if self.config.DCLSversion == 'gauss':
+                    alpha = (0.23/self.config.sigInit)**(1/(self.config.final_epoch))
+
+                for i in range(self.config.n_layers):
+                    self.blocks[i][0].SIG *= alpha
 
 
 
     def optimizers(self):
+        # weight_decay for positions and for batchnorm should be 0
         opts = []
         if self.config.optimizer_w == 'adam':
-            opts.append(optim.Adam([{'params':self.weights, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
+            opts.append(optim.Adam([{'params':self.weights_conv, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
+                                    {'params':self.weights_fc, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
+                                    {'params':self.delay_positions, 'lr':self.config.lr_pos, 'weight_decay': 0},
                                     {'params':self.weights_plif, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
                                     {'params':self.weights_bn, 'lr':self.config.lr_w, 'weight_decay':0}]))
 
