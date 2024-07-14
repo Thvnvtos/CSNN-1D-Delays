@@ -23,7 +23,7 @@ class Config:
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'csnn-1d-delays'           # model type could be set to : 'csnn-1d', 'csnn-1d-delays'
+    model_type = 'csnn-1d'           # model type could be set to : 'csnn-1d', 'csnn-1d-delays'
 
 
     spiking_neuron_type = 'lif'             # plif, lif
@@ -45,7 +45,7 @@ class Config:
     n_outputs = 20 if dataset == 'shd' else 35
 
     use_batchnorm = True
-    bias = False
+    bias = True
     detach_reset = True
 
 

@@ -7,7 +7,6 @@ Adding delays to 1D convolutional SNNs using DCLS2-1D
 
 ### Current work and next milestone:
 - Training and testing current code with CSNN-1D
-- Debug CSNN-1D (I think final FC is not registered correctly)
 - Working on CSNN-1D-Delays (Add parameters init, Sig decreasing, specific things in model.py, etc...)
 
 

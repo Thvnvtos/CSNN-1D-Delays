@@ -82,14 +82,19 @@ class CSNN1d(Model):
 
         self.model = nn.Sequential(*self.blocks)
 
-        self.weights = []
+        self.weights_conv = []
+        self.weights_fc = []
         self.weights_bn = []
         self.weights_plif = []
         for m in self.model.modules():
             if isinstance(m, layer.Conv1d):
-                self.weights.append(m.weight)
+                self.weights_conv.append(m.weight)
                 if self.config.bias:
-                    self.weights_bn.append(m.bias)
+                    self.weights_conv.append(m.bias)
+            if isinstance(m, layer.Linear):
+                self.weights_fc.append(m.weight)
+                if self.config.bias:
+                    self.weights_fc.append(m.bias)
             elif isinstance(m, layer.BatchNorm1d):
                 self.weights_bn.append(m.weight)
                 self.weights_bn.append(m.bias)
@@ -109,10 +114,10 @@ class CSNN1d(Model):
         # x size is (time, Batch, Channels, Neurons)
         out = x.mean(dim=3)                     # GlobalAvgPooling on Neurons/Freqs
 
-        out = self.final_block(out)              # Apply final FC+LIF block
+        out = self.final_block(out)             # Apply final FC+LIF block
 
         if self.config.loss != 'spike_count':   
-            out = self.final_block[-1].v_seq   # Return output neurons membrane potentials (Threshold should be infinite) if loss is not about spike counts      
+            out = self.final_block[-1].v_seq    # Return output neurons membrane potentials (Threshold should be infinite) if loss is not about spike counts      
 
         return out
 
@@ -132,7 +137,8 @@ class CSNN1d(Model):
     def optimizers(self):
         opts = []
         if self.config.optimizer_w == 'adam':
-            opts.append(optim.Adam([{'params':self.weights, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
+            opts.append(optim.Adam([{'params':self.weights_conv, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
+                                    {'params':self.weights_fc, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
                                     {'params':self.weights_plif, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
                                     {'params':self.weights_bn, 'lr':self.config.lr_w, 'weight_decay':0}]))
 
