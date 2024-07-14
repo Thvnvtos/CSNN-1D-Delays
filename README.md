@@ -8,6 +8,7 @@ Adding delays to 1D convolutional SNNs using DCLS2-1D
 - Training and testing current code with CSNN-1D and CSNN-1D-Delays
 - Make sure everything is working well, write some basic tests.
 
+- Check difference in speed between using nn.BN and layer.BN on CSNN-1D
 - Add Learning Rate Schedulers
 - Add simple Wandb logs
 - Add depthwise separable convs, either new model or as a configurable part of CSNN-1D-Delays
