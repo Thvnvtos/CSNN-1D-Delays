@@ -2,22 +2,16 @@
 Adding delays to 1D convolutional SNNs using DCLS2-1D
 
 ### Project progress:
-- Completed CSNN-1D-Delays simple Pipeline
+- Complete simple working pipeline with everything
 
 ### Current work and next milestone:
 - Training and testing current code with CSNN-1D and CSNN-1D-Delays
 - Make sure everything is working well, write some basic tests.
 
-- Check difference in speed between using nn.BN and layer.BN on CSNN-1D
-- Add Learning Rate Schedulers
-- Add simple Wandb logs
 - Add depthwise separable convs, either new model or as a configurable part of CSNN-1D-Delays
+- Improve wandb logging to spot eventual bugs easily
+- Try Using binning
 
 
 ### Notes:
-
-- Test using GAvgP+FClayer vs only GAvgP
-- Maybe Test Conv strides for CSNN-1D-Delays
-- Batchnorm stats calculated on all timesteps, is it a bad thing ?
-- Unit test reset_model() (is functional.reset_net working well ?)
-- Adding delays to the FC layer in csnn-1d-delays
+- Adding delays to the FC layer in csnn-1d-delays ?
