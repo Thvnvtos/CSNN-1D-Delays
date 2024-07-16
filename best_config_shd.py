@@ -23,19 +23,16 @@ class Config:
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'csnn-1d-delays'           # model type could be set to : 'csnn-1d', 'csnn-1d-delays'
+    model_type = 'csnn-1d-delays'                               # model type could be set to : 'csnn-1d', 'csnn-1d-delays'
 
 
-    spiking_neuron_type = 'lif'             # plif, lif
-    init_tau = 10.05                        # in ms, can't be < time_step
-
-    stateful_synapse_tau = 10.0             # in ms, can't be < time_step
-    stateful_synapse = False
-    stateful_synapse_learnable = False
+    spiking_neuron_type = 'lif'                                 # plif, lif
+    init_tau = 10.05                                            # in ms, can't be < time_step
+    init_tau = (init_tau  +  1e-9) / time_step
 
     
     n_inputs = 700
-    n_C = 16                                # base number of conv channels
+    n_C = 16                                                    # base number of conv channels
 
     n_layers = 4
     kernel_sizes = [5, 5, 2, 2]
@@ -58,7 +55,6 @@ class Config:
     loss_fn = 'CEloss'
     output_v_threshold = 2.0 if loss == 'spike_count' else 1e9  #  use 1e9 for loss = 'mean' or 'max'
 
-
     ################################################
     #                Optimization                  #
     ################################################
@@ -70,6 +66,9 @@ class Config:
 
     weight_decay = 1e-5
 
+
+    max_lr_w = 5 * lr_w
+    t_max_pos = epochs
 
     ################################################
     #                    Delays                    #
@@ -93,7 +92,6 @@ class Config:
     init_pos_a = -max_delay//2
     init_pos_b = max_delay//2
 
-
     #############################################
     #                      Wandb                #
     #############################################
@@ -111,13 +109,10 @@ class Config:
     wandb_run_name = run_name  + run_info + f'||seed={seed}'
     wandb_group_name = run_name + run_info
 
-
     ################################################
     #                 Fine-tuning                  #
     ################################################
     
-
-
 
     ################################################
     #               Data-Augmentation              #
