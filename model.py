@@ -30,6 +30,7 @@ class Model(nn.Module):
 
         # returns a list of optimizers for different groups of parameters
         optimizers = self.optimizers()
+        schedulers = self.schedulers(optimizers)
  
         ##################################    Train Loop    ##################################
 
@@ -67,6 +68,8 @@ class Model(nn.Module):
             loss_epochs['train'].append(np.mean(loss_batch))
             metric_epochs['train'].append(np.mean(metric_batch))
 
+
+            for scheduler in schedulers: scheduler.step()
             self.decrease_sig(epoch)
 
             ##################################    Eval Loop    ##################################

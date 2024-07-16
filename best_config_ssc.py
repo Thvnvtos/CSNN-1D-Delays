@@ -27,7 +27,7 @@ class Config:
 
 
     spiking_neuron_type = 'lif'             # plif, lif
-    init_tau = 15                           # in ms, can't be < time_step
+    init_tau = 15.                          # in ms, can't be < time_step
 
     stateful_synapse_tau = 10.0             # in ms, can't be < time_step
     stateful_synapse = False

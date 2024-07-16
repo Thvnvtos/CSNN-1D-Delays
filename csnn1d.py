@@ -128,10 +128,13 @@ class CSNN1d(Model):
         pass
 
 
-    def reset_model(self):
+    def reset_model(self, train=True):
         # you can add sparsity mask in here
         functional.reset_net(self)
 
+
+    def decrease_sig(self, epoch):
+        pass
 
 
     def optimizers(self):
@@ -143,3 +146,14 @@ class CSNN1d(Model):
                                     {'params':self.weights_bn, 'lr':self.config.lr_w, 'weight_decay':0}]))
 
         return opts
+    
+
+    def schedulers(self, optimizers):
+        #  returns a list of schedulers
+        #  Fro now using one cycle for weights and cosine annealing for delay positions
+
+        schedulers = []
+
+        schedulers.append(optim.lr_scheduler.OneCycleLR(optimizers[0], max_lr=self.config.max_lr_w, total_steps=self.config.epochs))
+
+        return schedulers

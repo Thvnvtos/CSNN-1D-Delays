@@ -201,8 +201,23 @@ class CSNN1d_Delays(Model):
         if self.config.optimizer_w == 'adam':
             opts.append(optim.Adam([{'params':self.weights_conv, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
                                     {'params':self.weights_fc, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
-                                    {'params':self.delay_positions, 'lr':self.config.lr_pos, 'weight_decay': 0},
                                     {'params':self.weights_plif, 'lr':self.config.lr_w, 'weight_decay':self.config.weight_decay},
                                     {'params':self.weights_bn, 'lr':self.config.lr_w, 'weight_decay':0}]))
+            
+            opts.append(optim.Adam([{'params':self.delay_positions, 'lr':self.config.lr_pos, 'weight_decay': 0}]))
 
         return opts
+    
+
+
+    def schedulers(self, optimizers):
+        #  returns a list of schedulers
+        #  Fro now using one cycle for weights and cosine annealing for delay positions
+
+        schedulers = []
+
+        schedulers.append(optim.lr_scheduler.OneCycleLR(optimizers[0], max_lr=self.config.max_lr_w, total_steps=self.config.epochs))
+        schedulers.append(optim.lr_scheduler.CosineAnnealingLR(optimizers[1], T_max = self.config.t_max_pos))
+
+        return schedulers
+
