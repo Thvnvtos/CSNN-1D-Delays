@@ -41,7 +41,8 @@ class Config:
 
     n_outputs = 20 if dataset == 'shd' else 35
 
-    use_batchnorm = True
+    batchnorm_type = 'bn1'                                      # 'bn1' = 1D BN ignoring time, 'bn2' = 2D BN considering (Freqs, Time) as the 2 dimensions (Maybe add SNN specific BNs next)
+
     bias = True
     detach_reset = True
 

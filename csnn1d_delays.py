@@ -25,13 +25,15 @@ class CSNN1d_Delays(Model):
 
         ################################################   First Layer    #######################################################
 
-        block = [
-                    Dcls2_1d(in_channels = 1, out_channels = self.config.channels[0], kernel_count  = self.config.kernel_count,
+        block = [   Dcls2_1d(in_channels = 1, out_channels = self.config.channels[0], kernel_count  = self.config.kernel_count,
                             stride = (self.config.strides[0], 1), dense_kernel_size = self.config.kernel_sizes[0], 
-                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion),
-                    
-                    nn.BatchNorm2d(num_features = self.config.channels[0])
-                    ]
+                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion)]
+        
+        if self.config.batchnorm_type == 'bn1':
+            block.append(layer.BatchNorm1d(num_features = self.config.channels[0], step_mode='m'))
+        elif self.config.batchnorm_type == 'bn2':
+            block.append(nn.BatchNorm2d(num_features = self.config.channels[0]))
+
         if self.config.spiking_neuron_type == 'lif': 
             block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
                                                        surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
@@ -47,13 +49,14 @@ class CSNN1d_Delays(Model):
         ################################################   Hidden Layers    #######################################################
 
         for i in range(1, self.config.n_layers):
-            block = [
-                        Dcls2_1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i], kernel_count  = self.config.kernel_count,
+            block = [   Dcls2_1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i], kernel_count  = self.config.kernel_count,
                                 stride = (self.config.strides[i], 1), dense_kernel_size = self.config.kernel_sizes[i], 
-                                dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion),
-                            
-                        nn.BatchNorm2d(num_features = self.config.channels[i]) 
-                    ]
+                                dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion)]
+            
+            if self.config.batchnorm_type == 'bn1':
+                block.append(layer.BatchNorm1d(num_features = self.config.channels[i], step_mode='m'))
+            elif self.config.batchnorm_type == 'bn2':
+                block.append(nn.BatchNorm2d(num_features = self.config.channels[i]))
             
             if self.config.spiking_neuron_type == 'lif': 
                 block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
@@ -68,9 +71,7 @@ class CSNN1d_Delays(Model):
 
         ################################################   Final Layer    #######################################################
 
-        self.final_block = [
-                            layer.Linear(in_features = self.config.channels[-1], out_features = self.config.n_outputs, bias = self.config.bias, step_mode='m')
-                            ]
+        self.final_block = [layer.Linear(in_features = self.config.channels[-1], out_features = self.config.n_outputs, bias = self.config.bias, step_mode='m')]
         
         if self.config.spiking_neuron_type == 'lif': 
             self.final_block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.output_v_threshold, 
@@ -125,10 +126,16 @@ class CSNN1d_Delays(Model):
         for i in range(self.config.n_layers):
             l = self.blocks[i]
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)          # add 0 padding following the time dimension
-            x = l[0](x)                         # Apply the conv x size = (Batch, Channels, Neurons, Time)
-            x = l[1](x)                         # Apply Batchnorm
-
-            x = x.permute(3, 0, 1, 2)           # permute to (Time, Batch, *) for multi-step mode in SJ 
+            x = l[0](x)                         # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
+            
+            # Apply Batchnorm
+            if self.config.batchnorm_type == 'bn1':
+                x = x.permute(3, 0, 1, 2)           # permute to (Time, Batch, *) for multi-step mode in SJ
+                x = l[1](x)
+            elif self.config.batchnorm_type == 'bn2':
+                x = l[1](x)
+                x = x.permute(3, 0, 1, 2)           
+            
             x = l[2](x)                         # Apply spiking neuron
             x = x.permute(1, 2, 3, 0)           # permute back 
 
