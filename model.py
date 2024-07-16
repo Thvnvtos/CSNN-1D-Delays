@@ -1,12 +1,17 @@
 import numpy as np
 from tqdm import tqdm
+from uuid import uuid4
+import wandb
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from utils import set_seed
+from config import Config
 
+# Might use later
+#temp_id = str(uuid4())                      # Generate unique ID name for temporary model checkpoint file
 
 class Model(nn.Module):
     def __init__(self, config):
@@ -27,6 +32,20 @@ class Model(nn.Module):
     
 
         set_seed(self.config.seed)
+
+
+        if self.config.use_wandb:
+
+            cfg = {k:v for k,v in dict(vars(Config)).items() if '__' not in k}              # Save all configuration in a dict that will be passed to wandb API
+
+            wandb.login(key=self.config.wandb_API_key)
+
+            wandb.init(
+                project= self.config.wandb_project_name,
+                name=self.config.wandb_run_name,
+                config = cfg,
+                group = self.config.wandb_group_name)
+
 
         # returns a list of optimizers for different groups of parameters
         optimizers = self.optimizers()
@@ -96,7 +115,29 @@ class Model(nn.Module):
             if test_loader:
                 print(f"Loss Test = {loss_epochs['test'][-1]:.3f}  |  Acc Test = {100*metric_epochs['test'][-1]:.2f}%  |  Best Acc Test = {100*max(metric_epochs['test']):.2f}%")
 
-                
+            
+            if self.config.use_wandb:
+
+                lr_w = schedulers[0].get_last_lr()[0]
+                lr_pos = schedulers[1].get_last_lr()[0] if self.config.model_type == 'csnn-1d-delays' else 0
+
+                wandb_logs = {"Epoch":epoch,
+                              "Loss_train":loss_epochs['train'][-1],
+                              "Acc_train" : metric_epochs['train'][-1],
+                              "Loss_valid" : loss_epochs['valid'][-1],
+                              "Acc_valid" : metric_epochs['valid'][-1],
+                              "Loss_test" : loss_epochs['test'][-1],
+                              "Acc_test" : metric_epochs['test'][-1],
+
+                              "LR_w" : lr_w,
+                              "LR_pos" : lr_pos}
+
+                wandb.log(wandb_logs)
+        
+        if self.config.use_wandb:
+            wandb.run.finish()
+
+
 
     def eval_model(self, loader, device):
         

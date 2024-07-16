@@ -94,21 +94,31 @@ class Config:
     init_pos_b = max_delay//2
 
 
+    #############################################
+    #                      Wandb                #
+    #############################################
+    # If use_wandb is True, specify your wandb API key in wandb_API_key and the project and run names.
+
+    use_wandb = True
+    wandb_API_key = ''
+    wandb_project_name = 'CSNN-1D-Delays'
+
+    run_name = 'Test'
+
+
+    run_info = f'||{model_type}||{dataset}'
+
+    wandb_run_name = run_name  + run_info + f'||seed={seed}'
+    wandb_group_name = run_name + run_info
+
+
     ################################################
     #                 Fine-tuning                  #
     ################################################
     
 
-    
 
 
     ################################################
     #               Data-Augmentation              #
     ################################################
-
-   
-
-
-    #############################################
-    #                      Wandb                #
-    #############################################
