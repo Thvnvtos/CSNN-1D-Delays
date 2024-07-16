@@ -10,8 +10,8 @@ import torch.nn.functional as F
 from utils import set_seed
 from config import Config
 
-# Might use later
-#temp_id = str(uuid4())                      # Generate unique ID name for temporary model checkpoint file
+
+temp_id = str(uuid4())                      # Generate unique ID name for temporary model checkpoint file
 
 class Model(nn.Module):
     def __init__(self, config):
@@ -143,8 +143,11 @@ class Model(nn.Module):
         
         self.eval()
         with torch.no_grad():
+
+            self.make_discrete(temp_id)                                                 # Make delay positions discrete (instead of gaussion) and round them
+
             loss_batch, metric_batch = [], []
-            for i, (x, labels, _ ) in enumerate(tqdm(loader)):                        # _ is the length of unpadded x
+            for i, (x, labels, _ ) in enumerate(tqdm(loader)):                          # _ is the length of unpadded x
 
                 # x for shd is: (batch_size, time_steps, neurons)
                 labels = F.one_hot(labels, self.config.n_outputs).float()
@@ -162,6 +165,7 @@ class Model(nn.Module):
 
                 self.reset_model(train=False)
 
+            self.make_gaussian(temp_id)
         
         return np.mean(loss_batch), np.mean(metric_batch)
     

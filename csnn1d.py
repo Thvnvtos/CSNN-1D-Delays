@@ -157,3 +157,13 @@ class CSNN1d(Model):
         schedulers.append(optim.lr_scheduler.OneCycleLR(optimizers[0], max_lr=self.config.max_lr_w, total_steps=self.config.epochs))
 
         return schedulers
+    
+
+    def round_pos(self):
+        pass
+
+    def make_discrete(self, temp_id):
+        pass
+
+    def make_gaussian(self, temp_id):
+        pass

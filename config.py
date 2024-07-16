@@ -97,7 +97,7 @@ class Config:
     #############################################
     # If use_wandb is True, specify your wandb API key in wandb_API_key and the project and run names.
 
-    use_wandb = True
+    use_wandb = False
     wandb_API_key = ''
     wandb_project_name = 'CSNN-1D-Delays'
 

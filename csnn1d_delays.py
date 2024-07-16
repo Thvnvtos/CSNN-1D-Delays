@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import os
 
 from spikingjelly.activation_based import neuron, layer
 from spikingjelly.activation_based import functional
@@ -221,3 +222,36 @@ class CSNN1d_Delays(Model):
 
         return schedulers
 
+
+
+    def round_pos(self):
+        with torch.no_grad():
+            for i in range(self.config.n_layers):
+                self.blocks[i][0].P.round_()
+                self.blocks[i][0].clamp_parameters()
+
+
+
+    def make_discrete(self, temp_id):
+
+        torch.save(self.state_dict(), temp_id + '.pt')                                      # Save state of model
+
+        for i in range(self.config.n_layers):                                               # Change each DCLS conv to make it discrete and round it
+            self.blocks[i][0].version = 'max'
+            self.blocks[i][0].DCK.version = 'max'
+            self.blocks[i][0].SIG *= 0
+            self.round_pos()
+
+
+    
+    def make_gaussian(self, temp_id):                                                       # Make DCLS convs kernel elements gaussian again and load saved model checkpoint
+        if self.config.DCLSversion == 'gauss':
+            for i in range(self.config.n_layers):
+                self.blocks[i][0].version = 'gauss'
+                self.blocks[i][0].DCK.version = 'gauss'
+
+        self.load_state_dict(torch.load(temp_id + '.pt'), strict=True)
+        if os.path.exists(temp_id + '.pt'):
+            os.remove(temp_id + '.pt')
+        else:
+            print(f"File '{temp_id + '.pt'}' does not exist.")
