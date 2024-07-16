@@ -20,3 +20,4 @@ Adding delays to 1D convolutional SNNs using DCLS2-1D
 - Maybe Test Conv strides for CSNN-1D-Delays
 - Batchnorm stats calculated on all timesteps, is it a bad thing ?
 - Unit test reset_model() (is functional.reset_net working well ?)
+- Adding delays to the FC layer in csnn-1d-delays

@@ -12,13 +12,13 @@ class Config:
 
     # dataset could be set to either 'shd', 'ssc' or 'gsc', change datasets_path accordingly.
     # ONLY SHD FOR NOW  
-    dataset = 'shd'                    
-    datasets_path = '../Datasets/SHD'
+    dataset = 'ssc'                    
+    datasets_path = '../Datasets/SSC'
 
     time_step = 10
 
-    epochs = 20
-    batch_size = 128
+    epochs = 100
+    batch_size = 256
     ################################################
     #               Model Achitecture              #
     ################################################
@@ -27,7 +27,7 @@ class Config:
 
 
     spiking_neuron_type = 'lif'             # plif, lif
-    init_tau = 10.05                        # in ms, can't be < time_step
+    init_tau = 15                           # in ms, can't be < time_step
 
     stateful_synapse_tau = 10.0             # in ms, can't be < time_step
     stateful_synapse = False
@@ -35,7 +35,7 @@ class Config:
 
     
     n_inputs = 700
-    n_C = 16                                # base number of conv channels
+    n_C = 64                                # base number of conv channels
 
     n_layers = 4
     kernel_sizes = [5, 5, 2, 2]
@@ -78,7 +78,7 @@ class Config:
     decrease_sig_method = 'exp'
     kernel_count = 1
 
-    max_delay = 200//time_step
+    max_delay = 300//time_step
     max_delay = max_delay if max_delay%2==1 else max_delay+1 # to make kernel_size an odd number
     
     # For constant sigma without the decreasing policy, set model_type == 'snn_delays' and sigInit = 0.23 and final_epoch = 0
