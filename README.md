@@ -5,6 +5,7 @@ Adding delays to 1D convolutional SNNs using DCLS2-1D
 - Complete simple working pipeline with everything
 
 ### Current work and next milestone:
+- Try dropout right after GavgP
 - Training and testing current code with CSNN-1D and CSNN-1D-Delays
 - Make sure everything is working well, write some basic tests.
 
