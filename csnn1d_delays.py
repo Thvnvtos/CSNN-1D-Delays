@@ -111,6 +111,9 @@ class CSNN1d_Delays(Model):
             elif isinstance(m, nn.BatchNorm2d):
                 self.weights_bn.append(m.weight)
                 self.weights_bn.append(m.bias)
+            elif isinstance(m, layer.BatchNorm1d):
+                self.weights_bn.append(m.weight)
+                self.weights_bn.append(m.bias)
             elif isinstance(m, neuron.ParametricLIFNode):
                 self.weights_plif.append(m.w)
 
