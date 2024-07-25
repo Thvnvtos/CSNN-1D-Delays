@@ -71,7 +71,8 @@ class CSNN1d_Delays(Model):
 
         ################################################   Final Layer    #######################################################
 
-        self.final_block = [layer.Linear(in_features = self.config.channels[-1], out_features = self.config.n_outputs, bias = self.config.bias, step_mode='m')]
+        self.final_block = [layer.Dropout(p = self.config.dropout_p, step_mode='m'),
+                            layer.Linear(in_features = self.config.channels[-1], out_features = self.config.n_outputs, bias = self.config.bias, step_mode='m')]
         
         if self.config.spiking_neuron_type == 'lif': 
             self.final_block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.output_v_threshold, 
@@ -142,15 +143,19 @@ class CSNN1d_Delays(Model):
             x = l[2](x)                         # Apply spiking neuron
             x = x.permute(1, 2, 3, 0)           # permute back 
 
-        # x size is (Batch, Channels, Neurons, Time)
-        out = x.mean(dim=2)                     # GlobalAvgPooling on Neurons/Freqs
 
-        out = out.permute(2, 0, 1)              # permute to (Time, Batch, Channels)
-        out = self.blocks[-1][0](out)           # Apply final FC+LIF block
-        out = self.blocks[-1][1](out)   
+        x = x.permute(3, 0, 1, 2)               # permute to (Time, Batch, Channels)
+        x = self.blocks[-1][0](x)                  # Apply Dropout
+
+        # x size is (Time, Batch, Channels, Neurons)
+        out = x.mean(dim=3)                     # GlobalAvgPooling on Neurons/Freqs
+
+        
+        out = self.blocks[-1][1](out)           # Apply final FC+LIF block
+        out = self.blocks[-1][2](out)   
 
         if self.config.loss != 'spike_count':   
-            out = self.blocks[-1][1].v_seq   # Return output neurons membrane potentials (Threshold should be infinite) if loss is not about spike counts      
+            out = self.blocks[-1][2].v_seq   # Return output neurons membrane potentials (Threshold should be infinite) if loss is not about spike counts      
 
         return out
 

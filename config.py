@@ -17,8 +17,8 @@ class Config:
 
     time_step = 10
 
-    epochs = 20
-    batch_size = 128
+    epochs = 100
+    batch_size = 256
     ################################################
     #               Model Achitecture              #
     ################################################
@@ -27,7 +27,7 @@ class Config:
 
 
     spiking_neuron_type = 'lif'                                 # plif, lif
-    init_tau = 10.05                                            # in ms, can't be < time_step
+    init_tau = 20                                               # in ms, can't be < time_step
     init_tau = (init_tau  +  1e-9) / time_step
 
     
@@ -43,7 +43,8 @@ class Config:
 
     batchnorm_type = 'bn1'                                      # 'bn1' = 1D BN ignoring time, 'bn2' = 2D BN considering (Freqs, Time) as the 2 dimensions (Maybe add SNN specific BNs next)
 
-    bias = True
+    dropout_p = 0.5
+    bias = False
     detach_reset = True
 
 
