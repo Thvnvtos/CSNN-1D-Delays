@@ -16,9 +16,10 @@ class Config:
     datasets_path = '../Datasets/SHD'
 
     time_step = 10
+    n_bins = 5
 
     epochs = 100
-    batch_size = 256
+    batch_size = 64
     ################################################
     #               Model Achitecture              #
     ################################################
@@ -35,8 +36,8 @@ class Config:
     n_C = 16                                                    # base number of conv channels
 
     n_layers = 4
-    kernel_sizes = [5, 5, 2, 2]
-    strides = [5, 5, 2, 2]
+    kernel_sizes =  [5, 2, 2, 2]
+    strides =       [1, 2, 2, 2]
     channels = [n_C, 2*n_C, 4*n_C, 8*n_C]
 
     n_outputs = 20 if dataset == 'shd' else 35

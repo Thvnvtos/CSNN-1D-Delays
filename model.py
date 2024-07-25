@@ -66,7 +66,7 @@ class Model(nn.Module):
                 # x for shd is: (batch_size, time_steps, neurons)
                 labels = F.one_hot(labels, self.config.n_outputs).float()
 
-                x = x.to(device)
+                x = x.float().to(device)
                 labels = labels.to(device)
 
                 for opt in optimizers:  opt.zero_grad()
@@ -152,7 +152,7 @@ class Model(nn.Module):
                 # x for shd is: (batch_size, time_steps, neurons)
                 labels = F.one_hot(labels, self.config.n_outputs).float()
 
-                x = x.to(device)
+                x = x.float().to(device)
                 labels = labels.to(device)
 
                 output = self.forward(x)
