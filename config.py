@@ -19,12 +19,12 @@ class Config:
     n_bins = 5
 
     epochs = 100
-    batch_size = 64
+    batch_size = 128
     ################################################
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'csnn-1d-delays'                               # model type could be set to : 'csnn-1d', 'csnn-1d-delays'
+    model_type = 'dwsep-csnn-1d-delays'                         # model type could be set to : 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
 
 
     spiking_neuron_type = 'lif'                                 # plif, lif
@@ -33,7 +33,7 @@ class Config:
 
     
     n_inputs = 700
-    n_C = 16                                                    # base number of conv channels
+    n_C = 32                                                    # base number of conv channels
 
     n_layers = 4
     kernel_sizes =  [5, 2, 2, 2]
@@ -65,7 +65,7 @@ class Config:
     optimizer_w = 'adam'
 
     lr_w = 1e-3
-    lr_pos = 100*lr_w   if model_type =='csnn-1d-delays' else 0
+    lr_pos = 100*lr_w   if model_type =='csnn-1d-delays' or model_type =='dwsep-csnn-1d-delays' else 0
 
     weight_decay = 1e-5
 
@@ -76,7 +76,7 @@ class Config:
     ################################################
     #                    Delays                    #
     ################################################
-    DCLSversion = 'gauss' if model_type =='csnn-1d-delays' else 'max'
+    DCLSversion = 'gauss' if model_type =='csnn-1d-delays' or model_type =='dwsep-csnn-1d-delays' else 'max'
     decrease_sig_method = 'exp'
     kernel_count = 1
 
@@ -84,8 +84,8 @@ class Config:
     max_delay = max_delay if max_delay%2==1 else max_delay+1 # to make kernel_size an odd number
     
     # For constant sigma without the decreasing policy, set model_type == 'snn_delays' and sigInit = 0.23 and final_epoch = 0
-    sigInit = max_delay // 2        if model_type == 'csnn-1d-delays' else 0
-    final_epoch = (1*epochs)//4     if model_type == 'csnn-1d-delays' else 0
+    sigInit = max_delay // 2        if model_type == 'csnn-1d-delays' or model_type =='dwsep-csnn-1d-delays' else 0
+    final_epoch = (1*epochs)//4     if model_type == 'csnn-1d-delays' or model_type =='dwsep-csnn-1d-delays' else 0
 
 
     left_padding = max_delay-1

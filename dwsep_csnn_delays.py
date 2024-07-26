@@ -12,7 +12,7 @@ from DCLS.construct.modules import Dcls2_1d
 from model import Model
 from utils import set_seed
 
-class CSNN1d_Delays(Model):
+class DwSep_CSNN1d_Delays(Model):
     def __init__(self, config):
         super().__init__(config)
 
@@ -27,7 +27,14 @@ class CSNN1d_Delays(Model):
 
         block = [   Dcls2_1d(in_channels = 1, out_channels = self.config.channels[0], kernel_count  = self.config.kernel_count,
                             stride = (self.config.strides[0], 1), dense_kernel_size = self.config.kernel_sizes[0], 
-                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion)]
+                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
+                            groups = 1),
+                    
+                    Dcls2_1d(in_channels = self.config.channels[0], out_channels = self.config.channels[0], kernel_count  = self.config.kernel_count,
+                            stride = (1, 1), dense_kernel_size = 1, 
+                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
+                            groups = 1)
+                ]
         
         if self.config.batchnorm_type == 'bn1':
             block.append(layer.BatchNorm1d(num_features = self.config.channels[0], step_mode='m'))
@@ -51,7 +58,14 @@ class CSNN1d_Delays(Model):
         for i in range(1, self.config.n_layers):
             block = [   Dcls2_1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i], kernel_count  = self.config.kernel_count,
                                 stride = (self.config.strides[i], 1), dense_kernel_size = self.config.kernel_sizes[i], 
-                                dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion)]
+                                dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
+                                groups = self.config.channels[i-1]),
+                        
+                        Dcls2_1d(in_channels = self.config.channels[i], out_channels = self.config.channels[i], kernel_count  = self.config.kernel_count,
+                            stride = (1, 1), dense_kernel_size = 1, 
+                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
+                            groups = 1)
+                    ]
             
             if self.config.batchnorm_type == 'bn1':
                 block.append(layer.BatchNorm1d(num_features = self.config.channels[i], step_mode='m'))
@@ -130,20 +144,22 @@ class CSNN1d_Delays(Model):
         for i in range(self.config.n_layers):
             l = self.blocks[i]
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)          # add 0 padding following the time dimension
-            x = l[0](x)                         # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
-            
+            x = l[0](x)                                                                                 # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
+            x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)
+            x = l[1](x)
+            print(x.size())
             # Apply Batchnorm
             if self.config.batchnorm_type == 'bn1':
-                x = x.permute(3, 0, 1, 2)           # permute to (Time, Batch, *) for multi-step mode in SJ
-                x = l[1](x)
+                x = x.permute(3, 0, 1, 2)                 # permute to (Time, Batch, *) for multi-step mode in SJ
+                x = l[2](x)
             elif self.config.batchnorm_type == 'bn2':
-                x = l[1](x)
+                x = l[2](x)
                 x = x.permute(3, 0, 1, 2)           
             
-            x = l[2](x)                         # Apply spiking neuron
+            x = l[3](x)                         # Apply spiking neuron
             x = x.permute(1, 2, 3, 0)           # permute back 
 
-
+        print(x.size())
         x = x.permute(3, 0, 1, 2)               # permute to (Time, Batch, Channels)
         x = self.blocks[-1][0](x)                  # Apply Dropout
 
@@ -176,12 +192,18 @@ class CSNN1d_Delays(Model):
                 torch.nn.init.uniform_(self.blocks[i][0].P, a = self.config.init_pos_a, b = self.config.init_pos_b)
                 self.blocks[i][0].clamp_parameters()
 
+                torch.nn.init.uniform_(self.blocks[i][1].P, a = self.config.init_pos_a, b = self.config.init_pos_b)
+                self.blocks[i][1].clamp_parameters()
+
 
         ##################################   SIG Init   ############################
 
         for i in range(self.config.n_layers):
             torch.nn.init.constant_(self.blocks[i][0].SIG, self.config.sigInit)
             self.blocks[i][0].SIG.requires_grad = False
+
+            torch.nn.init.constant_(self.blocks[i][1].SIG, self.config.sigInit)
+            self.blocks[i][1].SIG.requires_grad = False
 
 
 
@@ -194,6 +216,7 @@ class CSNN1d_Delays(Model):
         if train:
             for i in range(self.config.n_layers):
                 self.blocks[i][0].clamp_parameters()
+                self.blocks[i][1].clamp_parameters()
 
 
     def decrease_sig(self, epoch):
@@ -208,6 +231,7 @@ class CSNN1d_Delays(Model):
 
                 for i in range(self.config.n_layers):
                     self.blocks[i][0].SIG *= alpha
+                    self.blocks[i][1].SIG *= alpha
 
 
 
@@ -245,6 +269,9 @@ class CSNN1d_Delays(Model):
                 self.blocks[i][0].P.round_()
                 self.blocks[i][0].clamp_parameters()
 
+                self.blocks[i][1].P.round_()
+                self.blocks[i][1].clamp_parameters()
+
 
 
     def make_discrete(self, temp_id):
@@ -255,6 +282,11 @@ class CSNN1d_Delays(Model):
             self.blocks[i][0].version = 'max'
             self.blocks[i][0].DCK.version = 'max'
             self.blocks[i][0].SIG *= 0
+
+            self.blocks[i][1].version = 'max'
+            self.blocks[i][1].DCK.version = 'max'
+            self.blocks[i][1].SIG *= 0
+
         self.round_pos()
 
 
@@ -264,6 +296,9 @@ class CSNN1d_Delays(Model):
             for i in range(self.config.n_layers):
                 self.blocks[i][0].version = 'gauss'
                 self.blocks[i][0].DCK.version = 'gauss'
+
+                self.blocks[i][1].version = 'gauss'
+                self.blocks[i][1].DCK.version = 'gauss'
 
         self.load_state_dict(torch.load(temp_id + '.pt'), strict=True)
         if os.path.exists(temp_id + '.pt'):

@@ -3,6 +3,7 @@ import torch
 import data, utils
 from csnn1d import CSNN1d
 from csnn1d_delays import CSNN1d_Delays
+from dwsep_csnn_delays import DwSep_CSNN1d_Delays
 from config import Config
 
 
@@ -13,11 +14,13 @@ config = Config()
 
 if config.model_type == 'csnn-1d':
     model = CSNN1d(config).to(device)
-else:
+
+elif config.model_type == 'csnn-1d_delays':
     model = CSNN1d_Delays(config).to(device)
 
-#if config.model_type == 'snn_delays_lr0':
-#    model.round_pos()
+elif config.model_type == 'dwsep-csnn-1d-delays':
+    model = DwSep_CSNN1d_Delays(config).to(device)
+
 
 
 print(f"===> Dataset    = {config.dataset}")
