@@ -196,6 +196,12 @@ class CSNN1d_Delays(Model):
                 self.blocks[i][0].clamp_parameters()
 
 
+    def get_sigma(self):
+        if self.config.DCLSversion in ['gauss', 'max']:
+            return self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()
+        else: return 0
+
+
     def decrease_sig(self, epoch):
         
         with torch.no_grad():
@@ -207,7 +213,7 @@ class CSNN1d_Delays(Model):
                             self.blocks[i][0].SIG *= self.config.alpha
                     
                     elif epoch == self.config.final_epoch:
-                        sig = self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()                                                          # Get current SIG value
+                        sig = self.get_sigma()                                                        
                         alpha_final = 0 if self.config.DCLSversion == 'max' else self.config.sig_final_gauss/sig                            # Make sig 0 or final_gauss_sig which is 0.23
                         for i in range(self.config.n_layers):
                             self.blocks[i][0].SIG *= alpha_final

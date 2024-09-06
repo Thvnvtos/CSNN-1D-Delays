@@ -15,7 +15,7 @@ config = Config()
 if config.model_type == 'csnn-1d':
     model = CSNN1d(config).to(device)
 
-elif config.model_type == 'csnn-1d_delays':
+elif config.model_type == 'csnn-1d-delays':
     model = CSNN1d_Delays(config).to(device)
 
 elif config.model_type == 'dwsep-csnn-1d-delays':

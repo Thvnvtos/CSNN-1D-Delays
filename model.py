@@ -119,7 +119,9 @@ class Model(nn.Module):
             if self.config.use_wandb:
 
                 lr_w = schedulers[0].get_last_lr()[0]
-                lr_pos = schedulers[1].get_last_lr()[0] if self.config.model_type == 'csnn-1d-delays' else 0
+                lr_pos = schedulers[1].get_last_lr()[0] 
+
+                sig = self.get_sigma()
 
                 wandb_logs = {"Epoch":epoch,
                               "Loss_train":loss_epochs['train'][-1],
@@ -130,7 +132,10 @@ class Model(nn.Module):
                               "Acc_test" : metric_epochs['test'][-1],
 
                               "LR_w" : lr_w,
-                              "LR_pos" : lr_pos}
+                              "LR_pos" : lr_pos,
+
+                              "SIG" : sig
+                              }
 
                 wandb.log(wandb_logs)
         
