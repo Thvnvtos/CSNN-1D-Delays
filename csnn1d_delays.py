@@ -4,6 +4,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 import os
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 from spikingjelly.activation_based import neuron, layer
 from spikingjelly.activation_based import functional
 
@@ -281,3 +284,25 @@ class CSNN1d_Delays(Model):
             os.remove(temp_id + '.pt')
         else:
             print(f"File '{temp_id + '.pt'}' does not exist.")
+
+
+
+    def save_pos_distribution(self, path):
+        with torch.no_grad():
+            #dcls.P size is (1, n_C_out, n_C_in, kernel_size, 1)
+            for i in range(self.config.n_layers):
+                
+                pos_tensor = self.blocks[i][0].P
+                fig, axes = plt.subplots(self.config.kernel_sizes[i], 1, figsize = (10, self.config.kernel_sizes[i]*3))
+
+                bin_edges = np.linspace(-self.config.max_delay//2 + 1, self.config.max_delay//2, 50)
+
+                for j in range(self.config.kernel_sizes[i]):                    
+                    axes[j].hist(pos_tensor[:, :, :, j].flatten().cpu().detach().numpy(), bins =  bin_edges, color='lightgreen', edgecolor='black')
+                    axes[j].set_title(f'Kernel row {j}')
+                    axes[j].set_ylabel('Frequency')
+                    axes[j].set_xlim(-self.config.max_delay//2, self.config.max_delay//2 + 1)
+                axes[self.config.kernel_sizes[i]-1].set_xlabel('Position')
+            
+                plt.savefig(f'Layer_{i}.jpg')
+                #plt.clf()

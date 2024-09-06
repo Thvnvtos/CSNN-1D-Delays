@@ -142,6 +142,8 @@ class Model(nn.Module):
         if self.config.use_wandb:
             wandb.run.finish()
 
+        self.save_pos_distribution('final_pos_distribution')
+
 
 
     def eval_model(self, loader, device):
