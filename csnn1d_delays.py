@@ -165,7 +165,6 @@ class CSNN1d_Delays(Model):
     def init_parameters(self):
         set_seed(self.config.seed)
 
-
         ###################################   Weights Init   ######################################
 
 
@@ -179,9 +178,10 @@ class CSNN1d_Delays(Model):
 
         ##################################   SIG Init   ############################
 
-        for i in range(self.config.n_layers):
-            torch.nn.init.constant_(self.blocks[i][0].SIG, self.config.sigInit)
-            self.blocks[i][0].SIG.requires_grad = False
+        if self.config.DCLSversion in ['gauss', 'max']:
+            for i in range(self.config.n_layers):
+                torch.nn.init.constant_(self.blocks[i][0].SIG, self.config.sigInit)
+                self.blocks[i][0].SIG.requires_grad = False
 
 
 
@@ -197,17 +197,21 @@ class CSNN1d_Delays(Model):
 
 
     def decrease_sig(self, epoch):
-        # Decreasing to 0.23 instead of 0.5
-                                                          
-        sig = self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()                      # Get current SIG value
-        if self.config.decrease_sig_method == 'exp':
-            if epoch < self.config.final_epoch and sig > 0.23:
-                alpha = 0 
-                if self.config.DCLSversion == 'gauss':
-                    alpha = (0.23/self.config.sigInit)**(1/(self.config.final_epoch))
-
-                for i in range(self.config.n_layers):
-                    self.blocks[i][0].SIG *= alpha
+        
+        with torch.no_grad():
+            if self.config.DCLSversion in ['gauss', 'max']:
+                
+                if self.config.decrease_sig_method == 'exp':
+                    if epoch < self.config.final_epoch:
+                        for i in range(self.config.n_layers):
+                            self.blocks[i][0].SIG *= self.config.alpha
+                    
+                    elif epoch == self.config.final_epoch:
+                        sig = self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()                                                          # Get current SIG value
+                        alpha_final = 0 if self.config.DCLSversion == 'max' else self.config.sig_final_gauss/sig                            # Make sig 0 or final_gauss_sig which is 0.23
+                        for i in range(self.config.n_layers):
+                            self.blocks[i][0].SIG *= alpha_final
+                
 
 
 
@@ -247,20 +251,21 @@ class CSNN1d_Delays(Model):
 
 
 
-    def make_discrete(self, temp_id):
+    def delay_eval_mode(self, temp_id):
 
         torch.save(self.state_dict(), temp_id + '.pt')                                      # Save state of model
 
-        for i in range(self.config.n_layers):                                               # Change each DCLS conv to make it discrete and round it
-            self.blocks[i][0].version = 'max'
-            self.blocks[i][0].DCK.version = 'max'
-            self.blocks[i][0].SIG *= 0
+        if self.config.DCLSversion in ['gauss', 'max']: 
+            for i in range(self.config.n_layers):                                           # Change each DCLS conv to discrete vmax and round positions
+                self.blocks[i][0].version = 'max'
+                self.blocks[i][0].DCK.version = 'max'
+                self.blocks[i][0].SIG *= 0
+        
         self.round_pos()
 
 
-    
-    def make_gaussian(self, temp_id):                                                       # Make DCLS convs kernel elements gaussian again and load saved model checkpoint
-        if self.config.DCLSversion == 'gauss':
+    def delay_train_mode(self, temp_id):                                                    
+        if self.config.DCLSversion == 'gauss':                                              
             for i in range(self.config.n_layers):
                 self.blocks[i][0].version = 'gauss'
                 self.blocks[i][0].DCK.version = 'gauss'

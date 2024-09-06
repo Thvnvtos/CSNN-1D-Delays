@@ -76,8 +76,9 @@ class Config:
     ################################################
     #                    Delays                    #
     ################################################
-    DCLSversion = 'gauss' if model_type =='csnn-1d-delays' or model_type =='dwsep-csnn-1d-delays' else 'max'
+    DCLSversion = 'gauss'           # 'gauss',  'max',   'v1'
     decrease_sig_method = 'exp'
+
     kernel_count = 1
 
     max_delay = 200//time_step
@@ -94,6 +95,16 @@ class Config:
     init_pos_method = 'uniform'
     init_pos_a = -max_delay//2
     init_pos_b = max_delay//2
+
+    sig_final_vmax = 1e-6
+    sig_final_gauss = 0.23                                      # Remember why it's specifically 0.23 for vgauss in dcls
+
+    if DCLSversion == 'gauss':
+        if decrease_sig_method == 'exp':
+            alpha = (sig_final_gauss/sigInit)**(1/final_epoch)
+    elif DCLSversion == 'max':
+        if decrease_sig_method == 'exp':
+            alpha = (sig_final_vmax/sigInit)**(1/final_epoch)
 
     #############################################
     #                      Wandb                #
