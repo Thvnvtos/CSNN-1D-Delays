@@ -140,7 +140,6 @@ class DwSep_CSNN1d_Delays(Model):
     def forward(self, x):
         # Neurons is same as Freqs
 
-        print("input size = ", x.size())
 
         x = x.permute(0,2,1)                    # permute from (batch, time, neurons) to  (batch, neurons, time) for dcls2-1d strides
         x = x.unsqueeze(1)                      # add channels dimension  (batch, channels, neurons, time)
@@ -149,8 +148,6 @@ class DwSep_CSNN1d_Delays(Model):
 
         for i in range(self.config.n_layers):
             l = self.blocks[i]
-            print("the block = ", l)
-            print("input to DCLS size = ", x.size())
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)          # add 0 padding following the time dimension
             x = l[0](x)                                                                                 # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)
