@@ -149,9 +149,7 @@ class DwSep_CSNN1d_Delays(Model):
         for i in range(self.config.n_layers):
             l = self.blocks[i]
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)          # add 0 padding following the time dimension
-            x = l[0](x)                                                                                 # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
-            x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)
-            x = l[1](x)
+            x = l[1](l[0](x))                                                                           # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
             
             
             # Apply Batchnorm
@@ -217,17 +215,28 @@ class DwSep_CSNN1d_Delays(Model):
                 self.blocks[i][0].clamp_parameters()
 
 
-    def decrease_sig(self, epoch):
-        # Decreasing to 0.23 instead of 0.5                        
-        sig = self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()                      # Get current SIG value
-        if self.config.decrease_sig_method == 'exp':
-            if epoch < self.config.final_epoch and sig > 0.23:
-                alpha = 0 
-                if self.config.DCLSversion == 'gauss':
-                    alpha = (0.23/self.config.sigInit)**(1/(self.config.final_epoch))
+    def get_sigma(self):
+        if self.config.DCLSversion in ['gauss', 'max']:
+            return self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()
+        else: return 0    
 
-                for i in range(self.config.n_layers):
-                    self.blocks[i][0].SIG *= alpha
+
+
+    def decrease_sig(self, epoch):
+        
+        with torch.no_grad():
+            if self.config.DCLSversion in ['gauss', 'max']:
+                
+                if self.config.decrease_sig_method == 'exp':
+                    if epoch < self.config.final_epoch:
+                        for i in range(self.config.n_layers):
+                            self.blocks[i][0].SIG *= self.config.alpha
+                    
+                    elif epoch == self.config.final_epoch:
+                        sig = self.get_sigma()                                                        
+                        alpha_final = 0 if self.config.DCLSversion == 'max' else self.config.sig_final_gauss/sig                            # Make sig 0 or final_gauss_sig which is 0.23
+                        for i in range(self.config.n_layers):
+                            self.blocks[i][0].SIG *= alpha_final
 
 
 
@@ -267,21 +276,22 @@ class DwSep_CSNN1d_Delays(Model):
 
 
 
-    def make_discrete(self, temp_id):
+    def delay_eval_mode(self, temp_id):
 
         torch.save(self.state_dict(), temp_id + '.pt')                                      # Save state of model
 
-        for i in range(self.config.n_layers):                                               # Change each DCLS conv to make it discrete and round it
-            self.blocks[i][0].version = 'max'
-            self.blocks[i][0].DCK.version = 'max'
-            self.blocks[i][0].SIG *= 0
-
+        if self.config.DCLSversion in ['gauss', 'max']: 
+            for i in range(self.config.n_layers):                                           # Change each DCLS conv to discrete vmax and round positions
+                self.blocks[i][0].version = 'max'
+                self.blocks[i][0].DCK.version = 'max'
+                self.blocks[i][0].SIG *= 0
+        
         self.round_pos()
 
 
-    
-    def make_gaussian(self, temp_id):                                                       # Make DCLS convs kernel elements gaussian again and load saved model checkpoint
-        if self.config.DCLSversion == 'gauss':
+
+    def delay_train_mode(self, temp_id):                                                    
+        if self.config.DCLSversion == 'gauss':                                              
             for i in range(self.config.n_layers):
                 self.blocks[i][0].version = 'gauss'
                 self.blocks[i][0].DCK.version = 'gauss'
@@ -291,3 +301,25 @@ class DwSep_CSNN1d_Delays(Model):
             os.remove(temp_id + '.pt')
         else:
             print(f"File '{temp_id + '.pt'}' does not exist.")
+
+
+
+    def save_pos_distribution(self, path):
+        with torch.no_grad():
+            #dcls.P size is (1, n_C_out, n_C_in, kernel_size, 1)
+            for i in range(self.config.n_layers):
+                
+                pos_tensor = self.blocks[i][0].P
+                fig, axes = plt.subplots(self.config.kernel_sizes[i], 1, figsize = (10, self.config.kernel_sizes[i]*3))
+
+                bin_edges = np.linspace(-self.config.max_delay//2 + 1, self.config.max_delay//2, 50)
+
+                for j in range(self.config.kernel_sizes[i]):                    
+                    axes[j].hist(pos_tensor[:, :, :, j].flatten().cpu().detach().numpy(), bins =  bin_edges, color='lightgreen', edgecolor='black')
+                    axes[j].set_title(f'Kernel row {j}')
+                    axes[j].set_ylabel('Frequency')
+                    axes[j].set_xlim(-self.config.max_delay//2, self.config.max_delay//2 + 1)
+                axes[self.config.kernel_sizes[i]-1].set_xlabel('Position')
+            
+                plt.savefig(f'Layer_{i}.jpg')
+                #plt.clf()

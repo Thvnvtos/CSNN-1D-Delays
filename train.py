@@ -7,7 +7,7 @@ from dwsep_csnn_delays import DwSep_CSNN1d_Delays
 from config import Config
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"\n=====> Device = {device} \n\n")
 
 config = Config()
