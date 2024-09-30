@@ -24,7 +24,7 @@ class Config:
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'csnn-1d-delays'                               # model type could be set to : 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
+    model_type = 'dwsep-csnn-1d-delays'                               # model type could be set to : 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
 
 
     spiking_neuron_type = 'lif'                                 # plif, lif
@@ -76,7 +76,7 @@ class Config:
     ################################################
     #                    Delays                    #
     ################################################
-    DCLSversion = 'max'                               # 'gauss',  'max',   'v1'
+    DCLSversion = 'max'                                     # 'gauss',  'max',   'v1'
     decrease_sig_method = 'exp'
 
     kernel_count = 1
@@ -112,7 +112,7 @@ class Config:
     # If use_wandb is True, specify your wandb API key in wandb_API_key and the project and run names.
 
     use_wandb = False
-    wandb_API_key = ''
+    wandb_API_key = '25f19d79982fd7c29f092981a100f187f2c706b4'
     wandb_project_name = 'CSNN-1D-Delays'
 
     run_name = 'Test'

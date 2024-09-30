@@ -4,6 +4,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 import os
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 from spikingjelly.activation_based import neuron, layer
 from spikingjelly.activation_based import functional
 
@@ -29,11 +32,8 @@ class DwSep_CSNN1d_Delays(Model):
                             stride = (self.config.strides[0], 1), dense_kernel_size = self.config.kernel_sizes[0], 
                             dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
                             groups = 1),
-                    
-                    Dcls2_1d(in_channels = self.config.channels[0], out_channels = self.config.channels[0], kernel_count  = self.config.kernel_count,
-                            stride = (1, 1), dense_kernel_size = 1, 
-                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
-                            groups = 1)
+
+                    nn.Conv2d(in_channels=self.config.channels[0], out_channels=self.config.channels[0], kernel_size=(1,1), stride=1)
                 ]
         
         if self.config.batchnorm_type == 'bn1':
@@ -61,10 +61,7 @@ class DwSep_CSNN1d_Delays(Model):
                                 dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
                                 groups = self.config.channels[i-1]),
                         
-                        Dcls2_1d(in_channels = self.config.channels[i], out_channels = self.config.channels[i], kernel_count  = self.config.kernel_count,
-                            stride = (1, 1), dense_kernel_size = 1, 
-                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
-                            groups = 1)
+                        nn.Conv2d(in_channels=self.config.channels[i], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1)
                     ]
             
             if self.config.batchnorm_type == 'bn1':
@@ -119,22 +116,31 @@ class DwSep_CSNN1d_Delays(Model):
                 self.weights_conv.append(m.weight)
                 if self.config.bias:
                     self.weights_conv.append(m.bias)
+            elif isinstance(m, nn.Conv2d):
+                self.weights_conv.append(m.weight)
+                if self.config.bias:
+                    self.weights_conv.append(m.bias)
+
             elif isinstance(m, layer.Linear):
                 self.weights_fc.append(m.weight)
                 if self.config.bias:
                     self.weights_fc.append(m.bias)
+
             elif isinstance(m, nn.BatchNorm2d):
                 self.weights_bn.append(m.weight)
                 self.weights_bn.append(m.bias)
             elif isinstance(m, layer.BatchNorm1d):
                 self.weights_bn.append(m.weight)
                 self.weights_bn.append(m.bias)
+
             elif isinstance(m, neuron.ParametricLIFNode):
                 self.weights_plif.append(m.w)
 
 
     def forward(self, x):
         # Neurons is same as Freqs
+
+        print("input size = ", x.size())
 
         x = x.permute(0,2,1)                    # permute from (batch, time, neurons) to  (batch, neurons, time) for dcls2-1d strides
         x = x.unsqueeze(1)                      # add channels dimension  (batch, channels, neurons, time)
@@ -143,11 +149,14 @@ class DwSep_CSNN1d_Delays(Model):
 
         for i in range(self.config.n_layers):
             l = self.blocks[i]
+            print("the block = ", l)
+            print("input to DCLS size = ", x.size())
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)          # add 0 padding following the time dimension
             x = l[0](x)                                                                                 # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)
             x = l[1](x)
-            print(x.size())
+            
+            
             # Apply Batchnorm
             if self.config.batchnorm_type == 'bn1':
                 x = x.permute(3, 0, 1, 2)                 # permute to (Time, Batch, *) for multi-step mode in SJ
@@ -159,7 +168,6 @@ class DwSep_CSNN1d_Delays(Model):
             x = l[3](x)                         # Apply spiking neuron
             x = x.permute(1, 2, 3, 0)           # permute back 
 
-        print(x.size())
         x = x.permute(3, 0, 1, 2)               # permute to (Time, Batch, Channels)
         x = self.blocks[-1][0](x)                  # Apply Dropout
 
@@ -192,19 +200,13 @@ class DwSep_CSNN1d_Delays(Model):
                 torch.nn.init.uniform_(self.blocks[i][0].P, a = self.config.init_pos_a, b = self.config.init_pos_b)
                 self.blocks[i][0].clamp_parameters()
 
-                torch.nn.init.uniform_(self.blocks[i][1].P, a = self.config.init_pos_a, b = self.config.init_pos_b)
-                self.blocks[i][1].clamp_parameters()
-
 
         ##################################   SIG Init   ############################
 
-        for i in range(self.config.n_layers):
-            torch.nn.init.constant_(self.blocks[i][0].SIG, self.config.sigInit)
-            self.blocks[i][0].SIG.requires_grad = False
-
-            torch.nn.init.constant_(self.blocks[i][1].SIG, self.config.sigInit)
-            self.blocks[i][1].SIG.requires_grad = False
-
+        if self.config.DCLSversion in ['gauss', 'max']:
+            for i in range(self.config.n_layers):
+                torch.nn.init.constant_(self.blocks[i][0].SIG, self.config.sigInit)
+                self.blocks[i][0].SIG.requires_grad = False
 
 
 
@@ -216,12 +218,10 @@ class DwSep_CSNN1d_Delays(Model):
         if train:
             for i in range(self.config.n_layers):
                 self.blocks[i][0].clamp_parameters()
-                self.blocks[i][1].clamp_parameters()
 
 
     def decrease_sig(self, epoch):
-        # Decreasing to 0.23 instead of 0.5
-                                                          
+        # Decreasing to 0.23 instead of 0.5                        
         sig = self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()                      # Get current SIG value
         if self.config.decrease_sig_method == 'exp':
             if epoch < self.config.final_epoch and sig > 0.23:
@@ -231,7 +231,6 @@ class DwSep_CSNN1d_Delays(Model):
 
                 for i in range(self.config.n_layers):
                     self.blocks[i][0].SIG *= alpha
-                    self.blocks[i][1].SIG *= alpha
 
 
 
@@ -269,9 +268,6 @@ class DwSep_CSNN1d_Delays(Model):
                 self.blocks[i][0].P.round_()
                 self.blocks[i][0].clamp_parameters()
 
-                self.blocks[i][1].P.round_()
-                self.blocks[i][1].clamp_parameters()
-
 
 
     def make_discrete(self, temp_id):
@@ -283,10 +279,6 @@ class DwSep_CSNN1d_Delays(Model):
             self.blocks[i][0].DCK.version = 'max'
             self.blocks[i][0].SIG *= 0
 
-            self.blocks[i][1].version = 'max'
-            self.blocks[i][1].DCK.version = 'max'
-            self.blocks[i][1].SIG *= 0
-
         self.round_pos()
 
 
@@ -296,9 +288,6 @@ class DwSep_CSNN1d_Delays(Model):
             for i in range(self.config.n_layers):
                 self.blocks[i][0].version = 'gauss'
                 self.blocks[i][0].DCK.version = 'gauss'
-
-                self.blocks[i][1].version = 'gauss'
-                self.blocks[i][1].DCK.version = 'gauss'
 
         self.load_state_dict(torch.load(temp_id + '.pt'), strict=True)
         if os.path.exists(temp_id + '.pt'):
