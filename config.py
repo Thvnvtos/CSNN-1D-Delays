@@ -18,17 +18,17 @@ class Config:
     time_step = 10
     n_bins = 5
 
-    epochs = 100
+    epochs = 150
     batch_size = 64
     ################################################
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'dwsep-csnn-1d-delays'                               # model type could be set to : 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
+    model_type = 'csnn-axonal-delays'                               # model type could be set to : 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays' or csnn-axonal-delays
 
 
     spiking_neuron_type = 'lif'                                 # plif, lif
-    init_tau = 15                                               # in ms, can't be < time_step
+    init_tau = 20                                               # in ms, can't be < time_step
     init_tau = (init_tau  +  1e-9) / time_step
 
     
@@ -44,9 +44,9 @@ class Config:
 
     batchnorm_type = 'bn1'                                      # 'bn1' = 1D BN ignoring time, 'bn2' = 2D BN considering (Freqs, Time) as the 2 dimensions (Maybe add SNN specific BNs next)
 
-    dropout_p = 0.75
-    bias = False
-    detach_reset = True
+    dropout_p = 0.5
+    bias = True
+    detach_reset = False
 
 
     v_threshold = 1.0
@@ -64,10 +64,10 @@ class Config:
     
     optimizer_w = 'adam'
 
-    lr_w = 1e-3
-    lr_pos = 100*lr_w   if model_type =='csnn-1d-delays' or model_type =='dwsep-csnn-1d-delays' else 0
+    lr_w = 5e-4
+    lr_pos = 10*lr_w   if model_type =='csnn-1d-delays' or model_type =='dwsep-csnn-1d-delays' else 0
 
-    weight_decay = 1e-5
+    weight_decay = 3e-5
 
 
     max_lr_w = 5 * lr_w
@@ -81,16 +81,16 @@ class Config:
 
     kernel_count = 1
 
-    max_delay = 100//time_step
+    max_delay = 200//time_step
     max_delay = max_delay if max_delay%2==1 else max_delay+1 # to make kernel_size an odd number
     
 
     sigInit = max_delay // 2        
-    final_epoch = (1*epochs)//4     
+    final_epoch = (1*epochs)//2     
     
 
     left_padding = max_delay-1
-    right_padding = 0#(max_delay-1) // 2
+    right_padding = (max_delay-1) // 2
 
     init_pos_method = 'uniform'
     init_pos_a = -max_delay//2 + 1
@@ -111,11 +111,11 @@ class Config:
     #############################################
     # If use_wandb is True, specify your wandb API key in wandb_API_key and the project and run names.
 
-    use_wandb = False
+    use_wandb = True
     wandb_API_key = '25f19d79982fd7c29f092981a100f187f2c706b4'
     wandb_project_name = 'CSNN-1D-Delays'
 
-    run_name = 'Test'
+    run_name = 'Axonal-Delay|Test'
 
 
     run_info = f'||{model_type}||{dataset}'

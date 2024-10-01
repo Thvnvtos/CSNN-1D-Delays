@@ -4,10 +4,11 @@ import data, utils
 from csnn1d import CSNN1d
 from csnn1d_delays import CSNN1d_Delays
 from dwsep_csnn_delays import DwSep_CSNN1d_Delays
+from csnn1d_axonal_delays import CSNN1d_Axonal_Delays
 from config import Config
 
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 print(f"\n=====> Device = {device} \n\n")
 
 config = Config()
@@ -20,6 +21,9 @@ elif config.model_type == 'csnn-1d-delays':
 
 elif config.model_type == 'dwsep-csnn-1d-delays':
     model = DwSep_CSNN1d_Delays(config).to(device)
+
+elif config.model_type == 'csnn-axonal-delays':
+    model = CSNN1d_Axonal_Delays(config).to(device)
 
 
 
