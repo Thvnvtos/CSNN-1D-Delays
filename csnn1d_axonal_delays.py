@@ -33,7 +33,7 @@ class CSNN1d_Axonal_Delays(Model):
         block = [  Dcls1d(in_channels = 1, out_channels = 1, kernel_count=self.config.kernel_count, 
                                 groups = 1, dilated_kernel_size = self.config.max_delay, bias=False, version=self.config.DCLSversion),
             
-                    nn.Conv1d(in_channels = 1, out_channels = self.config.channels[0], kernel_size=self.config.kernel_sizes[0], stride=self.config.kernel_sizes[0], 
+                    nn.Conv1d(in_channels = 1, out_channels = self.config.channels[0], kernel_size=self.config.kernel_sizes[0], stride=self.config.strides[0], 
                               bias=self.config.bias, groups=1)
                 ]
         
@@ -60,7 +60,7 @@ class CSNN1d_Axonal_Delays(Model):
             block = [   Dcls1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i-1], kernel_count=self.config.kernel_count, 
                                 groups = self.config.channels[i-1], dilated_kernel_size = self.config.max_delay, bias=False, version=self.config.DCLSversion),   
             
-                        nn.Conv1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i], kernel_size=self.config.kernel_sizes[i], stride=self.config.kernel_sizes[i], 
+                        nn.Conv1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i], kernel_size=self.config.kernel_sizes[i], stride=self.config.strides[i], 
                                 bias=self.config.bias, groups=1)   
                     ]
             
@@ -327,16 +327,17 @@ class CSNN1d_Axonal_Delays(Model):
             for i in range(self.config.n_layers):
                 
                 pos_tensor = self.blocks[i][0].P
-                fig, axes = plt.subplots(self.config.kernel_sizes[i], 1, figsize = (10, self.config.kernel_sizes[i]*3))
-
+                fig, axes = plt.subplots(2, 1, figsize = (10,3))
+                #print(pos_tensor.size())
+                #print(axes.shape)
                 bin_edges = np.linspace(-self.config.max_delay//2 + 1, self.config.max_delay//2, 50)
 
-                for j in range(self.config.kernel_sizes[i]):                    
+                for j in range(1):                    
                     axes[j].hist(pos_tensor[:, :, :, j].flatten().cpu().detach().numpy(), bins =  bin_edges, color='lightgreen', edgecolor='black')
                     axes[j].set_title(f'Kernel row {j}')
                     axes[j].set_ylabel('Frequency')
                     axes[j].set_xlim(-self.config.max_delay//2, self.config.max_delay//2 + 1)
-                axes[self.config.kernel_sizes[i]-1].set_xlabel('Position')
+                axes[0].set_xlabel('Position')
             
                 plt.savefig(f'Layer_{i}.jpg')
                 #plt.clf()
