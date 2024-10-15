@@ -28,12 +28,12 @@ class DwSep_CSNN1d_Delays(Model):
 
         ################################################   First Layer    #######################################################
 
-        block = [   Dcls2_1d(in_channels = 1, out_channels = self.config.channels[0], kernel_count  = self.config.kernel_count,
+        block = [   Dcls2_1d(in_channels = 1, out_channels = 1, kernel_count  = self.config.kernel_count,
                             stride = (self.config.strides[0], 1), dense_kernel_size = self.config.kernel_sizes[0], 
                             dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
                             groups = 1),
 
-                    nn.Conv2d(in_channels=self.config.channels[0], out_channels=self.config.channels[0], kernel_size=(1,1), stride=1)
+                    nn.Conv2d(in_channels=1, out_channels=self.config.channels[0], kernel_size=(1,1), stride=1)
                 ]
         
         if self.config.batchnorm_type == 'bn1':
@@ -56,12 +56,12 @@ class DwSep_CSNN1d_Delays(Model):
         ################################################   Hidden Layers    #######################################################
 
         for i in range(1, self.config.n_layers):
-            block = [   Dcls2_1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i], kernel_count  = self.config.kernel_count,
+            block = [   Dcls2_1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i-1], kernel_count  = self.config.kernel_count,
                                 stride = (self.config.strides[i], 1), dense_kernel_size = self.config.kernel_sizes[i], 
                                 dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
                                 groups = self.config.channels[i-1]),
                         
-                        nn.Conv2d(in_channels=self.config.channels[i], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1)
+                        nn.Conv2d(in_channels=self.config.channels[i-1], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1)
                     ]
             
             if self.config.batchnorm_type == 'bn1':
@@ -140,17 +140,14 @@ class DwSep_CSNN1d_Delays(Model):
     def forward(self, x):
         # Neurons is same as Freqs
 
-
         x = x.permute(0,2,1)                    # permute from (batch, time, neurons) to  (batch, neurons, time) for dcls2-1d strides
         x = x.unsqueeze(1)                      # add channels dimension  (batch, channels, neurons, time)
 
-        
 
         for i in range(self.config.n_layers):
             l = self.blocks[i]
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)          # add 0 padding following the time dimension
             x = l[1](l[0](x))                                                                           # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
-            
             
             # Apply Batchnorm
             if self.config.batchnorm_type == 'bn1':
@@ -169,7 +166,6 @@ class DwSep_CSNN1d_Delays(Model):
         # x size is (Time, Batch, Channels, Neurons)
         out = x.mean(dim=3)                     # GlobalAvgPooling on Neurons/Freqs
 
-        
         out = self.blocks[-1][1](out)           # Apply final FC+LIF block
         out = self.blocks[-1][2](out)   
 
