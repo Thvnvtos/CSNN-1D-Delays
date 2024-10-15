@@ -33,11 +33,7 @@ class DwSep_CSNN1d_Delays(Model):
                             dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
                             groups = 1),
 
-<<<<<<< HEAD
                     nn.Conv2d(in_channels=1, out_channels=self.config.channels[0], kernel_size=(1,1), stride=1)
-=======
-                    nn.Conv2d(in_channels=self.config.channels[0], out_channels=self.config.channels[0], kernel_size=(1,1), stride=1, bias=self.config.bias)
->>>>>>> b8269b9ac76ad5eaba3bc3bb6fdeee66c499ade2
                 ]
         
         if self.config.batchnorm_type == 'bn1':
@@ -65,11 +61,7 @@ class DwSep_CSNN1d_Delays(Model):
                                 dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
                                 groups = self.config.channels[i-1]),
                         
-<<<<<<< HEAD
                         nn.Conv2d(in_channels=self.config.channels[i-1], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1)
-=======
-                        nn.Conv2d(in_channels=self.config.channels[i], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1, bias=self.config.bias)
->>>>>>> b8269b9ac76ad5eaba3bc3bb6fdeee66c499ade2
                     ]
             
             if self.config.batchnorm_type == 'bn1':

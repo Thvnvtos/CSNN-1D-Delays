@@ -3,3 +3,5 @@ Datasets/SHD/*
 wandb/*
 *.jpg
 *.mp4
+
+config.py

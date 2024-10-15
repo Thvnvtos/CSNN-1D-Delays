@@ -24,7 +24,7 @@ class Config:
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'csnn-axonal-delays'                               # model type could be set to : 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
+    model_type = 'dwsep-csnn-1d-delays'                               # model type could be set to : 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
 
 
     spiking_neuron_type = 'lif'                                 # plif, lif
@@ -36,9 +36,9 @@ class Config:
     n_C = 32                                                   # base number of conv channels
 
     n_layers = 8
-    kernel_sizes =  [7, 7, 5, 5, 5, 3, 3, 3]
-    strides =       [1, 2, 1, 2, 1, 1, 1, 2]
-    channels = [n_C, n_C, 4*n_C, 4*n_C, 8*n_C, 8*n_C, 16*n_C, 16*n_C] #[n_C, 2*n_C, 4*n_C, 8*n_C]
+    kernel_sizes =  [7, 7, 5, 5, 5, 3, 3, 3] #[7, 7, 5, 5, 5, 3, 3, 3]
+    strides =       [1, 2, 1, 1, 2, 1, 1, 2]
+    channels = [n_C, 2*n_C, 4*n_C, 4*n_C, 8*n_C, 8*n_C, 16*n_C, 16*n_C] #[n_C, 2*n_C, 4*n_C, 8*n_C]
 
     n_outputs = 20 if dataset == 'shd' else 35
 
@@ -65,7 +65,7 @@ class Config:
     optimizer_w = 'adam'
 
     lr_w = 1e-3
-    lr_pos = 50*lr_w 
+    lr_pos = 50*lr_w
 
     weight_decay = 2e-5
 
@@ -81,7 +81,7 @@ class Config:
 
     kernel_count = 1
 
-    max_delay = 70//time_step
+    max_delay = 50//time_step
     max_delay = max_delay if max_delay%2==1 else max_delay+1 # to make kernel_size an odd number
     
 
@@ -93,7 +93,7 @@ class Config:
     right_padding = 0#(max_delay-1) // 2
 
     init_pos_method = 'uniform'
-    init_pos_a = max_delay//2 - 1e-6#-max_delay//2 + 1
+    init_pos_a = -max_delay//2 + 1
     init_pos_b = max_delay//2
 
     sig_final_vmax = 1e-6
@@ -115,7 +115,7 @@ class Config:
     wandb_API_key = '25f19d79982fd7c29f092981a100f187f2c706b4'
     wandb_project_name = 'CSNN-1D-Delays'
 
-    run_name = 'Max|Axonal-POS-RMinit-test|PW|8Layers|drop=0.5|MD=70|'
+    run_name = 'Max||PW|8Layers'
 
 
     run_info = f'||{model_type}||{dataset}'
