@@ -10,12 +10,14 @@ import matplotlib.pyplot as plt
 from spikingjelly.activation_based import neuron, layer
 from spikingjelly.activation_based import functional
 
-from DCLS.construct.modules import Dcls2_1d
+from DCLS.construct.modules import Dcls1d
 
 from model import Model
 from utils import set_seed
 
-class DwSep_CSNN1d_Delays(Model):
+
+
+class CSNN1d_Axonal_Delays(Model):
     def __init__(self, config):
         super().__init__(config)
 
@@ -28,16 +30,11 @@ class DwSep_CSNN1d_Delays(Model):
 
         ################################################   First Layer    #######################################################
 
-        block = [   Dcls2_1d(in_channels = 1, out_channels = 1, kernel_count  = self.config.kernel_count,
-                            stride = (self.config.strides[0], 1), dense_kernel_size = self.config.kernel_sizes[0], 
-                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
-                            groups = 1),
-
-<<<<<<< HEAD
-                    nn.Conv2d(in_channels=1, out_channels=self.config.channels[0], kernel_size=(1,1), stride=1)
-=======
-                    nn.Conv2d(in_channels=self.config.channels[0], out_channels=self.config.channels[0], kernel_size=(1,1), stride=1, bias=self.config.bias)
->>>>>>> b8269b9ac76ad5eaba3bc3bb6fdeee66c499ade2
+        block = [  Dcls1d(in_channels = 1, out_channels = 1, kernel_count=self.config.kernel_count, 
+                                groups = 1, dilated_kernel_size = self.config.max_delay, bias=False, version=self.config.DCLSversion),
+            
+                    nn.Conv1d(in_channels = 1, out_channels = self.config.channels[0], kernel_size=self.config.kernel_sizes[0], stride=self.config.strides[0], 
+                              bias=self.config.bias, groups=1)
                 ]
         
         if self.config.batchnorm_type == 'bn1':
@@ -60,22 +57,17 @@ class DwSep_CSNN1d_Delays(Model):
         ################################################   Hidden Layers    #######################################################
 
         for i in range(1, self.config.n_layers):
-            block = [   Dcls2_1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i-1], kernel_count  = self.config.kernel_count,
-                                stride = (self.config.strides[i], 1), dense_kernel_size = self.config.kernel_sizes[i], 
-                                dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
-                                groups = self.config.channels[i-1]),
-                        
-<<<<<<< HEAD
-                        nn.Conv2d(in_channels=self.config.channels[i-1], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1)
-=======
-                        nn.Conv2d(in_channels=self.config.channels[i], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1, bias=self.config.bias)
->>>>>>> b8269b9ac76ad5eaba3bc3bb6fdeee66c499ade2
+            block = [   Dcls1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i-1], kernel_count=self.config.kernel_count, 
+                                groups = self.config.channels[i-1], dilated_kernel_size = self.config.max_delay, bias=False, version=self.config.DCLSversion),   
+            
+                        nn.Conv1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i], kernel_size=self.config.kernel_sizes[i], stride=self.config.strides[i], 
+                                bias=self.config.bias, groups=1)   
                     ]
             
             if self.config.batchnorm_type == 'bn1':
                 block.append(layer.BatchNorm1d(num_features = self.config.channels[i], step_mode='m'))
-            elif self.config.batchnorm_type == 'bn2':
-                block.append(nn.BatchNorm2d(num_features = self.config.channels[i]))
+            #elif self.config.batchnorm_type == 'bn2':
+            #    block.append(nn.BatchNorm2 d(num_features = self.config.channels[i]))
             
             if self.config.spiking_neuron_type == 'lif': 
                 block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
@@ -119,12 +111,10 @@ class DwSep_CSNN1d_Delays(Model):
         self.weights_plif = []
         
         for m in self.model.modules():
-            if isinstance(m, Dcls2_1d):
+            if isinstance(m, Dcls1d):
                 self.delay_positions.append(m.P)
-                self.weights_conv.append(m.weight)
-                if self.config.bias:
-                    self.weights_conv.append(m.bias)
-            elif isinstance(m, nn.Conv2d):
+            
+            elif isinstance(m, nn.Conv1d):
                 self.weights_conv.append(m.weight)
                 if self.config.bias:
                     self.weights_conv.append(m.bias)
@@ -133,14 +123,12 @@ class DwSep_CSNN1d_Delays(Model):
                 self.weights_fc.append(m.weight)
                 if self.config.bias:
                     self.weights_fc.append(m.bias)
-
             elif isinstance(m, nn.BatchNorm2d):
                 self.weights_bn.append(m.weight)
                 self.weights_bn.append(m.bias)
             elif isinstance(m, layer.BatchNorm1d):
                 self.weights_bn.append(m.weight)
                 self.weights_bn.append(m.bias)
-
             elif isinstance(m, neuron.ParametricLIFNode):
                 self.weights_plif.append(m.w)
 
@@ -148,30 +136,57 @@ class DwSep_CSNN1d_Delays(Model):
     def forward(self, x):
         # Neurons is same as Freqs
 
-        x = x.permute(0,2,1)                    # permute from (batch, time, neurons) to  (batch, neurons, time) for dcls2-1d strides
-        x = x.unsqueeze(1)                      # add channels dimension  (batch, channels, neurons, time)
-
-
+        batch_size = x.size(0)
+        
+        x = x.permute(0, 2, 1)                  # permute x from (batch, time, freqs) to (batch, freqs, time)
+        x = x.reshape(-1, x.size(2))            # reshape x from (batch, freqs, time) to (batch*freqs, time)
+        x = x.unsqueeze(1)                      # add channels dimension  (batch*freqs, channels, time)
+        
         for i in range(self.config.n_layers):
             l = self.blocks[i]
+
             x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)          # add 0 padding following the time dimension
-            x = l[1](l[0](x))                                                                           # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
+            x = l[0](x)                                                                                 # Apply DCLS1D
             
+            # reshape from (batch*freqs, channels, time)  to (batch, freqs, channels, time)
+            x = x.reshape(batch_size, -1, x.size(1), x.size(2))
+            # permute to (batch, time, channels, freqs)
+            x = x.permute(0, 3, 2, 1)
+            #reshape to (batch*time, channels, freqs)
+            x = x.reshape(-1, x.size(2), x.size(3))
+            
+            #apply Conv1D on freqs
+            x = l[1](x)                         
+
+            # reshape to (batch, time, channels, freqs)
+            x = x.reshape(batch_size, -1, x.size(1), x.size(2))
+
             # Apply Batchnorm
             if self.config.batchnorm_type == 'bn1':
-                x = x.permute(3, 0, 1, 2)                 # permute to (Time, Batch, *) for multi-step mode in SJ
+                x = x.permute(1, 0, 2, 3)           # permute to (Time, Batch, *) for multi-step mode in SJ
                 x = l[2](x)
-            elif self.config.batchnorm_type == 'bn2':
-                x = l[2](x)
-                x = x.permute(3, 0, 1, 2)           
+            #elif self.config.batchnorm_type == 'bn2':
+            #    x = l[1](x)
+            #    x = x.permute(3, 0, 1, 2)           
+            
             
             x = l[3](x)                         # Apply spiking neuron
-            x = x.permute(1, 2, 3, 0)           # permute back 
 
-        x = x.permute(3, 0, 1, 2)               # permute to (Time, Batch, Channels)
+            # permute from (time, batch, channels, freqs) to (batch , freq, channels, time)
+            x = x.permute(1, 3, 2, 0)
+            # reshape to (batch*freqs, channels, time)
+            x = x.reshape(-1, x.size(2), x.size(3))         
+
+
+        # reshape to (batch, freqs, channels, time)
+        x = x.reshape(batch_size, -1, x.size(1), x.size(2))
+        # permute to (Time, batch, channels, freqs) 
+        x = x.permute(3, 0, 2, 1)
+    
         x = self.blocks[-1][0](x)                  # Apply Dropout
 
-        # x size is (Time, Batch, Channels, Neurons)
+
+        # x size is (Time, Batch, Channels, Freqs)
         out = x.mean(dim=3)                     # GlobalAvgPooling on Neurons/Freqs
 
         out = self.blocks[-1][1](out)           # Apply final FC+LIF block
@@ -188,11 +203,6 @@ class DwSep_CSNN1d_Delays(Model):
     def init_parameters(self):
         set_seed(self.config.seed)
 
-
-        ###################################   Weights Init   ######################################
-
-
-
         ###################################   Delay positions Init   ##############################
         if self.config.init_pos_method == 'uniform':
             for i in range(self.config.n_layers):
@@ -200,12 +210,16 @@ class DwSep_CSNN1d_Delays(Model):
                 self.blocks[i][0].clamp_parameters()
 
 
-        ##################################   SIG Init   ############################
+        ##################################   SIG and weights Init   ############################
 
         if self.config.DCLSversion in ['gauss', 'max']:
             for i in range(self.config.n_layers):
                 torch.nn.init.constant_(self.blocks[i][0].SIG, self.config.sigInit)
+                torch.nn.init.constant_(self.blocks[i][0].weight, 1)
+
                 self.blocks[i][0].SIG.requires_grad = False
+                self.blocks[i][0].weight.requires_grad = False
+
 
 
 
@@ -222,8 +236,7 @@ class DwSep_CSNN1d_Delays(Model):
     def get_sigma(self):
         if self.config.DCLSversion in ['gauss', 'max']:
             return self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()
-        else: return 0    
-
+        else: return 0
 
 
     def decrease_sig(self, epoch):
@@ -241,6 +254,7 @@ class DwSep_CSNN1d_Delays(Model):
                         alpha_final = 0 if self.config.DCLSversion == 'max' else self.config.sig_final_gauss/sig                            # Make sig 0 or final_gauss_sig which is 0.23
                         for i in range(self.config.n_layers):
                             self.blocks[i][0].SIG *= alpha_final
+                
 
 
 
@@ -293,7 +307,6 @@ class DwSep_CSNN1d_Delays(Model):
         self.round_pos()
 
 
-
     def delay_train_mode(self, temp_id):                                                    
         if self.config.DCLSversion == 'gauss':                                              
             for i in range(self.config.n_layers):
@@ -314,16 +327,17 @@ class DwSep_CSNN1d_Delays(Model):
             for i in range(self.config.n_layers):
                 
                 pos_tensor = self.blocks[i][0].P
-                fig, axes = plt.subplots(self.config.kernel_sizes[i], 1, figsize = (10, self.config.kernel_sizes[i]*3))
-
+                fig, axes = plt.subplots(2, 1, figsize = (10,3))
+                #print(pos_tensor.size())
+                #print(axes.shape)
                 bin_edges = np.linspace(-self.config.max_delay//2 + 1, self.config.max_delay//2, 50)
 
-                for j in range(self.config.kernel_sizes[i]):                    
+                for j in range(1):                    
                     axes[j].hist(pos_tensor[:, :, :, j].flatten().cpu().detach().numpy(), bins =  bin_edges, color='lightgreen', edgecolor='black')
                     axes[j].set_title(f'Kernel row {j}')
                     axes[j].set_ylabel('Frequency')
                     axes[j].set_xlim(-self.config.max_delay//2, self.config.max_delay//2 + 1)
-                axes[self.config.kernel_sizes[i]-1].set_xlabel('Position')
+                axes[0].set_xlabel('Position')
             
                 plt.savefig(f'Layer_{i}.jpg')
                 #plt.clf()
