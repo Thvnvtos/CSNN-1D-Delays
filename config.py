@@ -18,7 +18,7 @@ class Config:
     time_step = 20
     n_bins = 5
 
-    epochs = 25
+    epochs = 75
     batch_size = 32
     ################################################
     #               Model Achitecture              #
@@ -33,7 +33,7 @@ class Config:
 
     
     n_inputs = 700
-    n_C = 16                                                   # base number of conv channels
+    n_C = 32                                                   # base number of conv channels
 
 
     stem_kernel_size = 5
@@ -75,7 +75,7 @@ class Config:
     optimizer_w = 'adam'
 
     lr_w = 1e-3
-    lr_pos = 50*lr_w
+    lr_pos = 10*lr_w
 
     weight_decay = 2e-5
 
@@ -90,7 +90,7 @@ class Config:
 
     kernel_count = 1
     
-    max_delays = [100, 70, 50]
+    max_delays = [70, 70, 50]
 
     sigInits = [1/3, 1/3, 1/3]      
     final_epoch = (1*epochs)//3     
@@ -119,7 +119,7 @@ class Config:
     wandb_API_key = '25f19d79982fd7c29f092981a100f187f2c706b4'
     wandb_project_name = 'CSNN-1D-Delays'
 
-    run_name = 'CSnnNext-Delays|Testing'
+    run_name = 'CSnnNext-Delays|Baseline'
 
     run_info = f'||{model_type}||{dataset}'
 

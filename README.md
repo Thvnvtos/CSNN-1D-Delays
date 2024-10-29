@@ -18,3 +18,4 @@ This is mostly for my offline usage, to take notes and remember what to do next.
 - Add delays to the FC layer  ?
 - Add weights initialization for Conv layers and for final FC layer
 - Decrease Sig during batches instead of epochs
+- Log more information like (weight parameters, position changes, gradients, all sigmas, etc...) to catch potential bugs

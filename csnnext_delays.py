@@ -407,10 +407,11 @@ class CSnnNext_delays(Model):
                 pos_tensor = self.stages[i][0][2].P
 
                 fig, axes = plt.subplots(self.config.kernel_sizes[i], 1, figsize = (10, self.config.kernel_sizes[i]*3))
-                bin_edges = np.linspace(-self.config.max_delay//2 + 1, self.config.max_delay//2, 50)
+                
 
 
-                for j in range(self.config.kernel_sizes[i]):                    
+                for j in range(self.config.kernel_sizes[i]):
+                    bin_edges = np.linspace(-self.config.max_delays[i]//2 + 1, self.config.max_delays[i]//2, 50)                    
                     axes[j].hist(pos_tensor[:, :, :, j].flatten().cpu().detach().numpy(), bins =  bin_edges, color='lightgreen', edgecolor='black')
                     axes[j].set_title(f'Kernel row {j}')
                     axes[j].set_ylabel('Frequency')
