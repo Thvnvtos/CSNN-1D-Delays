@@ -6,17 +6,12 @@ This is mostly for my offline usage, to take notes and remember what to do next.
 
 ### Priority 1:
 
-- Update dwsep_csnn_delays.py
-    - use conv1d for the pointwise instead of dcls
-    - modify other dependencies
+- Finish code for CSnnNext
 
 ### Priority 2: 
 
-- Update csnn1d.py (with no delays)
-- Implement "axonal delays" (archi in discord)
-- Add video of pos evolution
 
 ### Notes:
-- Add delays to the FC layer in csnn-1d-delays ?
+- Add delays to the FC layer  ?
 - Add weights initialization for Conv layers and for final FC layer
 - Decrease Sig during batches instead of epochs

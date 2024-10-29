@@ -15,7 +15,24 @@ from DCLS.construct.modules import Dcls2_1d
 from model import Model
 from utils import set_seed
 
-class DwSep_CSNN1d_Delays(Model):
+
+
+
+# To include the permutation inside the Sequential block
+class Permute(nn.Module):
+    def __init__(self, *dims):
+        super(Permute, self).__init__()
+        self.dims = dims
+
+    def forward(self, x):
+        return x.permute(self.dims)
+
+
+
+
+
+
+class CSNNext_delays(Model):
     def __init__(self, config):
         super().__init__(config)
 
@@ -26,86 +43,101 @@ class DwSep_CSNN1d_Delays(Model):
 
         self.blocks = []          
 
-        ################################################   First Layer    #######################################################
+        ################################################   Stem    #######################################################
+        self.stem = [
+            
+            layer.Conv1d(in_channels = 1 , out_channels = self.config.channels[0], kernel_size = self.config.stem_kernel_size,
+                         stride = self.config.stem_stride, bias = self.config.bias, step_mode='m')
+        ]
 
-        block = [   Dcls2_1d(in_channels = 1, out_channels = 1, kernel_count  = self.config.kernel_count,
-                            stride = (self.config.strides[0], 1), dense_kernel_size = self.config.kernel_sizes[0], 
-                            dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
-                            groups = 1),
 
-                    nn.Conv2d(in_channels=1, out_channels=self.config.channels[0], kernel_size=(1,1), stride=1)
+        if self.config.batchnorm_type == 'SJ_bn1d':
+            self.stem.append(layer.BatchNorm1d(num_features = self.config.channels[0], step_mode='m'))
+        
+
+        ################################################   Hidden Layers - Stages    #######################################################
+
+        for i in range(self.config.n_stages):
+            for N in self.config.n_blocks:
+            
+                block = [
+                    
+                    Permute(1, 2, 3, 0),
+                    #(batch, channels, neurons, time)
+
+                    Dcls2_1d(in_channels = self.config.channels[i], out_channels = self.config.channels[i], kernel_count = self.config.kernel_count,
+                             stride = (self.config.strides[i], 1), dense_kernel_size = self.config.kernel_sizes[i], 
+                             dilated_kernel_size = self.config.max_delays[i], bias = self.config.bias, version = self.config.DCLSversion,
+                             groups = self.config.channels[i]),
+
+                    nn.Conv2d(in_channels=self.config.channels[i], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1),
+
+                    Permute(3, 0, 1, 2)
+                    #(time, batch, channels, neurons)
                 ]
-        
 
 
-
-        if self.config.batchnorm_type == 'bn1':
-            block.append(layer.BatchNorm1d(num_features = self.config.channels[0], step_mode='m'))
-        elif self.config.batchnorm_type == 'bn2':
-            block.append(nn.BatchNorm2d(num_features = self.config.channels[0]))
-
-
-
-        if self.config.spiking_neuron_type == 'lif': 
-            block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
-                                                       surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
-                                                       step_mode='m', decay_input=False, store_v_seq = True))
-        elif self.config.spiking_neuron_type == 'plif': 
-            block.append(neuron.ParametricLIFNode(init_tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
-                                                       surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
-                                                       step_mode='m', decay_input=False, store_v_seq = True))
-
-
-
-        self.blocks.append(block)
-        ################################################   Hidden Layers    #######################################################
-
-        for i in range(1, self.config.n_layers):
-            block = [   Dcls2_1d(in_channels = self.config.channels[i-1], out_channels = self.config.channels[i-1], kernel_count  = self.config.kernel_count,
-                                stride = (self.config.strides[i], 1), dense_kernel_size = self.config.kernel_sizes[i], 
-                                dilated_kernel_size = self.config.max_delay, bias = self.config.bias, version = self.config.DCLSversion,
-                                groups = self.config.channels[i-1]),
-                        
-                        nn.Conv2d(in_channels=self.config.channels[i-1], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1)
-                    ]
-            
-            if self.config.batchnorm_type == 'bn1':
-                block.append(layer.BatchNorm1d(num_features = self.config.channels[i], step_mode='m'))
-            elif self.config.batchnorm_type == 'bn2':
-                block.append(nn.BatchNorm2d(num_features = self.config.channels[i]))
-            
-            if self.config.spiking_neuron_type == 'lif': 
-                block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
-                                                       surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
-                                                       step_mode='m', decay_input=False, store_v_seq = True))
-            elif self.config.spiking_neuron_type == 'plif': 
-                block.append(neuron.ParametricLIFNode(init_tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
-                                                       surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
-                                                       step_mode='m', decay_input=False, store_v_seq = True))
+                # Add BN and Neuron model according to config
                 
-            self.blocks.append(block)
+                if self.config.batchnorm_type == 'SJ_bn1d':
+                    block.append(layer.BatchNorm1d(num_features = self.config.channels[i], step_mode='m'))
+                
 
-        ################################################   Final Layer    #######################################################
+                if self.config.spiking_neuron_type == 'lif': 
+                    block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
+                                                        surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
+                                                        step_mode='m', decay_input=False, store_v_seq = True))
+                elif self.config.spiking_neuron_type == 'plif': 
+                    block.append(neuron.ParametricLIFNode(init_tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
+                                                        surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
+                                                        step_mode='m', decay_input=False, store_v_seq = True))
+                
+                self.blocks += block
+            
 
-        self.final_block = [layer.Dropout(p = self.config.dropout_p, step_mode='m'),
-                            layer.Linear(in_features = self.config.channels[-1], out_features = self.config.n_outputs, bias = self.config.bias, step_mode='m')]
+            # Downsampling block
+
+            if i < self.config.n_stages-1:          # No downsampling after Final block
+                downsampling_block = [
+                
+                layer.Conv1d(in_channels = self.config.channels[i] , out_channels = self.config.channels[i+1], kernel_size = self.config.downsampling_kernel_sizes[i],
+                            stride = self.config.downsampling_strides[i], bias = self.config.bias, step_mode='m')
+                ]
+
+                if self.config.batchnorm_type == 'SJ_bn1d':
+                    downsampling_block.append(layer.BatchNorm1d(num_features = self.config.channels[i+1], step_mode='m'))
+
+
+                self.blocks += downsampling_block
+
+        ################################################   Final FC Layer    #######################################################
+
+        self.final_FC = [
+            
+            layer.Dropout(p = self.config.dropout_p, step_mode='m'),
+            layer.Linear(in_features = self.config.channels[-1], out_features = self.config.n_outputs, bias = self.config.bias, step_mode='m')
+        ]
         
+
         if self.config.spiking_neuron_type == 'lif': 
-            self.final_block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.output_v_threshold, 
+            self.final_FC.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.output_v_threshold, 
                                                     surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
                                                     step_mode='m', decay_input=False, store_v_seq = True))
         elif self.config.spiking_neuron_type == 'plif': 
-            self.final_block.append(neuron.ParametricLIFNode(init_tau=self.config.init_tau, v_threshold=self.config.output_v_threshold, 
+            self.final_FC.append(neuron.ParametricLIFNode(init_tau=self.config.init_tau, v_threshold=self.config.output_v_threshold, 
                                                     surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
                                                     step_mode='m', decay_input=False, store_v_seq = True))
 
-        
-        self.blocks.append(self.final_block)
 
         ################################################   Registering parameter groups   #########################################
         # Register parameter groups to have different learning rates and/or optimizer/scheduler fo each one, potentially.
 
-        self.model = nn.Sequential(*[m for b in self.blocks for m in b])
+        self.stem_seq = nn.Sequential(*self.stem)
+        self.blocks_seq = nn.Sequential(*self.blocks)
+        self.final_FC_seq = nn.Sequential(*self.final_FC)
+
+        self.model = nn.Sequential(*(self.stem + self.blocks + self.final_FC))
+
 
 
         self.weights_conv = []
@@ -121,7 +153,7 @@ class DwSep_CSNN1d_Delays(Model):
                 self.weights_conv.append(m.weight)
                 if self.config.bias:
                     self.weights_conv.append(m.bias)
-            elif isinstance(m, nn.Conv2d):
+            elif isinstance(m, layer.Conv1d) or isinstance(m, nn.Conv2d):
                 self.weights_conv.append(m.weight)
                 if self.config.bias:
                     self.weights_conv.append(m.bias)
@@ -131,9 +163,6 @@ class DwSep_CSNN1d_Delays(Model):
                 if self.config.bias:
                     self.weights_fc.append(m.bias)
 
-            elif isinstance(m, nn.BatchNorm2d):
-                self.weights_bn.append(m.weight)
-                self.weights_bn.append(m.bias)
             elif isinstance(m, layer.BatchNorm1d):
                 self.weights_bn.append(m.weight)
                 self.weights_bn.append(m.bias)
@@ -142,37 +171,24 @@ class DwSep_CSNN1d_Delays(Model):
                 self.weights_plif.append(m.w)
 
 
+
+
+
     def forward(self, x):
-        # Neurons is same as Freqs
+        
+        # Input x = (batch, time, freqs)
+        x = x.permute(1,0,2)                    # permute from (batch, time, neurons) to  (time, batch, neurons) for multi-step processing
+        x = x.unsqueeze(2)                      # add channels dimension  (time, batch, channels, neurons)
 
-        x = x.permute(0,2,1)                    # permute from (batch, time, neurons) to  (batch, neurons, time) for dcls2-1d strides
-        x = x.unsqueeze(1)                      # add channels dimension  (batch, channels, neurons, time)
+        # Input x = (time, batch, channels, neurons)
 
-
-        for i in range(self.config.n_layers):
-            l = self.blocks[i]
-            x = F.pad(x, (self.config.left_padding, self.config.right_padding), 'constant', 0)          # add 0 padding following the time dimension
-            x = l[1](l[0](x))                                                                           # Apply the conv,  x size = (Batch, Channels, Neurons, Time)
-            
-            # Apply Batchnorm
-            if self.config.batchnorm_type == 'bn1':
-                x = x.permute(3, 0, 1, 2)                 # permute to (Time, Batch, *) for multi-step mode in SJ
-                x = l[2](x)
-            elif self.config.batchnorm_type == 'bn2':
-                x = l[2](x)
-                x = x.permute(3, 0, 1, 2)           
-            
-            x = l[3](x)                         # Apply spiking neuron
-            x = x.permute(1, 2, 3, 0)           # permute back 
-
-        x = x.permute(3, 0, 1, 2)               # permute to (Time, Batch, Channels)
-        x = self.blocks[-1][0](x)                  # Apply Dropout
+        x = self.stem_seq(x)
+        x = self.blocks_seq(x)
 
         # x size is (Time, Batch, Channels, Neurons)
-        out = x.mean(dim=3)                     # GlobalAvgPooling on Neurons/Freqs
+        x = x.mean(dim=3)                     # GlobalAvgPooling on Neurons/Freqs
 
-        out = self.blocks[-1][1](out)           # Apply final FC+LIF block
-        out = self.blocks[-1][2](out)   
+        out = self.final_FC_seq(x)
 
         if self.config.loss != 'spike_count':   
             out = self.blocks[-1][2].v_seq   # Return output neurons membrane potentials (Threshold should be infinite) if loss is not about spike counts      
@@ -182,12 +198,14 @@ class DwSep_CSNN1d_Delays(Model):
 
 
 
+
+
     def init_parameters(self):
         set_seed(self.config.seed)
 
-
         ###################################   Weights Init   ######################################
 
+        # TO - DO
 
 
         ###################################   Delay positions Init   ##############################
@@ -206,6 +224,9 @@ class DwSep_CSNN1d_Delays(Model):
 
 
 
+
+
+
     def reset_model(self, train=True):
         # Reset Spiking neurons dynamics
         functional.reset_net(self)
@@ -216,10 +237,15 @@ class DwSep_CSNN1d_Delays(Model):
                 self.blocks[i][0].clamp_parameters()
 
 
+
+
+
     def get_sigma(self):
         if self.config.DCLSversion in ['gauss', 'max']:
             return self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()
         else: return 0    
+
+
 
 
 
@@ -241,6 +267,9 @@ class DwSep_CSNN1d_Delays(Model):
 
 
 
+
+
+
     def optimizers(self):
         # weight_decay for positions and for batchnorm should be 0
         opts = []
@@ -256,6 +285,9 @@ class DwSep_CSNN1d_Delays(Model):
     
 
 
+
+
+
     def schedulers(self, optimizers):
         #  returns a list of schedulers
         #  Fro now using one cycle for weights and cosine annealing for delay positions
@@ -266,6 +298,8 @@ class DwSep_CSNN1d_Delays(Model):
         schedulers.append(optim.lr_scheduler.CosineAnnealingLR(optimizers[1], T_max = self.config.t_max_pos))
 
         return schedulers
+
+
 
 
 
@@ -291,6 +325,9 @@ class DwSep_CSNN1d_Delays(Model):
 
 
 
+
+
+
     def delay_train_mode(self, temp_id):                                                    
         if self.config.DCLSversion == 'gauss':                                              
             for i in range(self.config.n_layers):
@@ -302,6 +339,9 @@ class DwSep_CSNN1d_Delays(Model):
             os.remove(temp_id + '.pt')
         else:
             print(f"File '{temp_id + '.pt'}' does not exist.")
+
+
+
 
 
 

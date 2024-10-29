@@ -4,4 +4,4 @@ wandb/*
 *.jpg
 *.mp4
 
-config.py
+test.ipynb
