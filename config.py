@@ -18,7 +18,7 @@ class Config:
     time_step = 20
     n_bins = 5
 
-    epochs = 50
+    epochs = 25
     batch_size = 32
     ################################################
     #               Model Achitecture              #
@@ -52,7 +52,7 @@ class Config:
 
     n_outputs = 20 if dataset == 'shd' else 35
 
-    batchnorm_type = 'bn1'                                      # 'bn1' = 1D BN ignoring time, 'bn2' = 2D BN considering (Freqs, Time) as the 2 dimensions (Maybe add SNN specific BNs next)
+    batchnorm_type = 'SJ_bn1d'                                      # 'bn1' = 1D BN ignoring time, 'bn2' = 2D BN considering (Freqs, Time) as the 2 dimensions (Maybe add SNN specific BNs next)
 
     dropout_p = 0.5
     bias = False
@@ -97,7 +97,7 @@ class Config:
     
 
     left_paddings = [None] * len(max_delays)    #defined in init
-    right_paddings = 0      #(max_delay-1) // 2
+    right_paddings = [0] * len(max_delays)      #(max_delay-1) // 2
 
     init_pos_method = 'uniform'
     init_pos_mode = 'random'            # 'random' or 'rm' (right-most)
@@ -119,7 +119,7 @@ class Config:
     wandb_API_key = '25f19d79982fd7c29f092981a100f187f2c706b4'
     wandb_project_name = 'CSNN-1D-Delays'
 
-    run_name = 'Max|Faster|PW|8Layers'
+    run_name = 'CSnnNext-Delays|Testing'
 
     run_info = f'||{model_type}||{dataset}'
 

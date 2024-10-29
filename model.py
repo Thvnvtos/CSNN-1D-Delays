@@ -121,7 +121,7 @@ class Model(nn.Module):
                 lr_w = schedulers[0].get_last_lr()[0]
                 lr_pos = schedulers[1].get_last_lr()[0] 
 
-                sig = self.get_sigma()
+                sigs = self.get_sigmas()
 
                 wandb_logs = {"Epoch":epoch,
                               "Loss_train":loss_epochs['train'][-1],
@@ -134,7 +134,7 @@ class Model(nn.Module):
                               "LR_w" : lr_w,
                               "LR_pos" : lr_pos,
 
-                              "SIG" : sig
+                              "SIG" : sigs[0]
                               }
 
                 wandb.log(wandb_logs)

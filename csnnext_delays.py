@@ -28,11 +28,23 @@ class Permute(nn.Module):
         return x.permute(self.dims)
 
 
+# To include the padding inside the Sequential block
+class Pad(nn.Module):
+    def __init__(self, left_pad, right_pad, kernel_size):
+        super(Pad, self).__init__()
+        self.left_pad = left_pad
+        self.right_pad = right_pad
+        self.kernel_size = kernel_size
+
+    def forward(self, x):
+        x = F.pad(x, (self.left_pad, self.right_pad, self.kernel_size//2, self.kernel_size//2 - (1 - self.kernel_size%2) ), 'constant', 0)
+        return x
 
 
 
 
-class CSNNext_delays(Model):
+
+class CSnnNext_delays(Model):
     def __init__(self, config):
         super().__init__(config)
 
@@ -41,7 +53,8 @@ class CSNNext_delays(Model):
 
     def build_model(self):
 
-        self.blocks = []          
+        self.stages, self.blocks = [], []
+        self.all_layers = []          
 
         ################################################   Stem    #######################################################
         self.stem = [
@@ -58,12 +71,17 @@ class CSNNext_delays(Model):
         ################################################   Hidden Layers - Stages    #######################################################
 
         for i in range(self.config.n_stages):
-            for N in self.config.n_blocks:
+            current_stage_blocks = []
+            for j in range(self.config.n_blocks[i]):
             
                 block = [
                     
                     Permute(1, 2, 3, 0),
                     #(batch, channels, neurons, time)
+
+                    # Pad time dimension before the DCLS layer
+                    Pad(self.config.left_paddings[i], self.config.right_paddings[i], self.config.kernel_sizes[i]),
+
 
                     Dcls2_1d(in_channels = self.config.channels[i], out_channels = self.config.channels[i], kernel_count = self.config.kernel_count,
                              stride = (self.config.strides[i], 1), dense_kernel_size = self.config.kernel_sizes[i], 
@@ -92,8 +110,9 @@ class CSNNext_delays(Model):
                                                         surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
                                                         step_mode='m', decay_input=False, store_v_seq = True))
                 
-                self.blocks += block
-            
+                
+                current_stage_blocks.append(block)
+                self.all_layers += block
 
             # Downsampling block
 
@@ -108,7 +127,9 @@ class CSNNext_delays(Model):
                     downsampling_block.append(layer.BatchNorm1d(num_features = self.config.channels[i+1], step_mode='m'))
 
 
-                self.blocks += downsampling_block
+                self.all_layers += downsampling_block
+            
+            self.stages.append(current_stage_blocks)
 
         ################################################   Final FC Layer    #######################################################
 
@@ -133,10 +154,10 @@ class CSNNext_delays(Model):
         # Register parameter groups to have different learning rates and/or optimizer/scheduler fo each one, potentially.
 
         self.stem_seq = nn.Sequential(*self.stem)
-        self.blocks_seq = nn.Sequential(*self.blocks)
+        self.blocks_seq = nn.Sequential(*self.all_layers)
         self.final_FC_seq = nn.Sequential(*self.final_FC)
 
-        self.model = nn.Sequential(*(self.stem + self.blocks + self.final_FC))
+        self.model = nn.Sequential(*(self.stem + self.all_layers + self.final_FC))
 
 
 
@@ -170,6 +191,16 @@ class CSNNext_delays(Model):
             elif isinstance(m, neuron.ParametricLIFNode):
                 self.weights_plif.append(m.w)
 
+        
+        ###############   Acessing different Layers #####################
+        '''
+            self.stages[i] : to access i-th stage
+            self.stages[i][j] : to acess j-th block in i-th stage
+
+            self.stages[i][j][2] : DCLS layer in the j-th block of the i-th stage
+        
+        '''
+
 
 
 
@@ -181,7 +212,6 @@ class CSNNext_delays(Model):
         x = x.unsqueeze(2)                      # add channels dimension  (time, batch, channels, neurons)
 
         # Input x = (time, batch, channels, neurons)
-
         x = self.stem_seq(x)
         x = self.blocks_seq(x)
 
@@ -191,8 +221,8 @@ class CSNNext_delays(Model):
         out = self.final_FC_seq(x)
 
         if self.config.loss != 'spike_count':   
-            out = self.blocks[-1][2].v_seq   # Return output neurons membrane potentials (Threshold should be infinite) if loss is not about spike counts      
-
+            out = self.final_FC_seq[-1].v_seq   # Return output neurons membrane potentials (Threshold should be infinite) if loss is not about spike counts      
+        
         return out
 
 
@@ -209,18 +239,23 @@ class CSNNext_delays(Model):
 
 
         ###################################   Delay positions Init   ##############################
+        
         if self.config.init_pos_method == 'uniform':
-            for i in range(self.config.n_layers):
-                torch.nn.init.uniform_(self.blocks[i][0].P, a = self.config.init_pos_a, b = self.config.init_pos_b)
-                self.blocks[i][0].clamp_parameters()
+
+            for i in range(self.config.n_stages):
+                for j in range(self.config.n_blocks[i]):
+                    torch.nn.init.uniform_(self.stages[i][j][2].P, a = self.config.init_pos_a[i], b = self.config.init_pos_b[i])
+                    self.stages[i][j][2].clamp_parameters()
 
 
         ##################################   SIG Init   ############################
 
         if self.config.DCLSversion in ['gauss', 'max']:
-            for i in range(self.config.n_layers):
-                torch.nn.init.constant_(self.blocks[i][0].SIG, self.config.sigInit)
-                self.blocks[i][0].SIG.requires_grad = False
+
+            for i in range(self.config.n_stages):
+                for j in range(self.config.n_blocks[i]):
+                    torch.nn.init.constant_(self.stages[i][j][2].SIG, self.config.sigInits[i])
+                    self.stages[i][j][2].SIG.requires_grad = False
 
 
 
@@ -233,17 +268,21 @@ class CSNNext_delays(Model):
 
         #Clamp parameters of DCLS2-1D modules
         if train:
-            for i in range(self.config.n_layers):
-                self.blocks[i][0].clamp_parameters()
+            for i in range(self.config.n_stages):
+                for j in range(self.config.n_blocks[i]):
+                    self.stages[i][j][2].clamp_parameters()
 
 
 
+    
+    def get_sigmas(self):
+        sigmas = [0] * self.config.n_stages
 
-
-    def get_sigma(self):
         if self.config.DCLSversion in ['gauss', 'max']:
-            return self.blocks[0][0].SIG[0,0,0,0].detach().cpu().item()
-        else: return 0    
+            for i in range(self.config.n_stages):
+                sigmas[i] = self.stages[i][0][2].SIG[0,0,0,0].detach().cpu().item()
+        
+        return sigmas    
 
 
 
@@ -255,15 +294,21 @@ class CSNNext_delays(Model):
             if self.config.DCLSversion in ['gauss', 'max']:
                 
                 if self.config.decrease_sig_method == 'exp':
+
                     if epoch < self.config.final_epoch:
-                        for i in range(self.config.n_layers):
-                            self.blocks[i][0].SIG *= self.config.alpha
+                        for i in range(self.config.n_stages):
+                            for j in range(self.config.n_blocks[i]):
+                                self.stages[i][j][2].SIG *= self.config.alpha[i]
                     
+
                     elif epoch == self.config.final_epoch:
-                        sig = self.get_sigma()                                                        
-                        alpha_final = 0 if self.config.DCLSversion == 'max' else self.config.sig_final_gauss/sig                            # Make sig 0 or final_gauss_sig which is 0.23
-                        for i in range(self.config.n_layers):
-                            self.blocks[i][0].SIG *= alpha_final
+                        sigs = self.get_sigmas()
+                        for i in range(self.config.n_stages):
+                            alpha_final = 0 if self.config.DCLSversion == 'max' else self.config.sig_final_gauss/sigs[i] 
+                            for j in range(self.config.n_blocks[i]):                                                        
+                                # Make sig 0 or final_gauss_sig which is 0.23
+                                self.stages[i][j][2].SIG *= alpha_final
+
 
 
 
@@ -285,9 +330,6 @@ class CSNNext_delays(Model):
     
 
 
-
-
-
     def schedulers(self, optimizers):
         #  returns a list of schedulers
         #  Fro now using one cycle for weights and cosine annealing for delay positions
@@ -303,11 +345,13 @@ class CSNNext_delays(Model):
 
 
 
+
     def round_pos(self):
         with torch.no_grad():
-            for i in range(self.config.n_layers):
-                self.blocks[i][0].P.round_()
-                self.blocks[i][0].clamp_parameters()
+            for i in range(self.config.n_stages):
+                for j in range(self.config.n_blocks[i]):
+                    self.stages[i][j][2].P.round_()
+                    self.stages[i][j][2].clamp_parameters()
 
 
 
@@ -315,12 +359,16 @@ class CSNNext_delays(Model):
 
         torch.save(self.state_dict(), temp_id + '.pt')                                      # Save state of model
 
+        # Change each DCLS conv to discrete vmax and round positions
         if self.config.DCLSversion in ['gauss', 'max']: 
-            for i in range(self.config.n_layers):                                           # Change each DCLS conv to discrete vmax and round positions
-                self.blocks[i][0].version = 'max'
-                self.blocks[i][0].DCK.version = 'max'
-                self.blocks[i][0].SIG *= 0
+
+            for i in range(self.config.n_stages):
+                for j in range(self.config.n_blocks[i]):                                          
+                    self.stages[i][j][2].version = 'max'
+                    self.stages[i][j][2].DCK.version = 'max'
+                    self.stages[i][j][2].SIG *= 0
         
+
         self.round_pos()
 
 
@@ -328,11 +376,15 @@ class CSNNext_delays(Model):
 
 
 
-    def delay_train_mode(self, temp_id):                                                    
-        if self.config.DCLSversion == 'gauss':                                              
-            for i in range(self.config.n_layers):
-                self.blocks[i][0].version = 'gauss'
-                self.blocks[i][0].DCK.version = 'gauss'
+    def delay_train_mode(self, temp_id):
+
+        if self.config.DCLSversion == 'gauss':       
+
+            for i in range(self.config.n_stages):
+                for j in range(self.config.n_blocks[i]):
+                    self.stages[i][j][2].version = 'gauss'
+                    self.stages[i][j][2].DCK.version = 'gauss'
+
 
         self.load_state_dict(torch.load(temp_id + '.pt'), strict=True)
         if os.path.exists(temp_id + '.pt'):
@@ -347,20 +399,23 @@ class CSNNext_delays(Model):
 
     def save_pos_distribution(self, path):
         with torch.no_grad():
-            #dcls.P size is (1, n_C_out, n_C_in, kernel_size, 1)
-            for i in range(self.config.n_layers):
-                
-                pos_tensor = self.blocks[i][0].P
-                fig, axes = plt.subplots(self.config.kernel_sizes[i], 1, figsize = (10, self.config.kernel_sizes[i]*3))
 
+            #dcls.P size is (1, n_C_out, n_C_in, kernel_size, 1)
+
+            for i in range(self.config.n_stages):
+                
+                pos_tensor = self.stages[i][0][2].P
+
+                fig, axes = plt.subplots(self.config.kernel_sizes[i], 1, figsize = (10, self.config.kernel_sizes[i]*3))
                 bin_edges = np.linspace(-self.config.max_delay//2 + 1, self.config.max_delay//2, 50)
+
 
                 for j in range(self.config.kernel_sizes[i]):                    
                     axes[j].hist(pos_tensor[:, :, :, j].flatten().cpu().detach().numpy(), bins =  bin_edges, color='lightgreen', edgecolor='black')
                     axes[j].set_title(f'Kernel row {j}')
                     axes[j].set_ylabel('Frequency')
-                    axes[j].set_xlim(-self.config.max_delay//2, self.config.max_delay//2 + 1)
+                    axes[j].set_xlim(-self.config.max_delays[i]//2, self.config.max_delays[i]//2 + 1)
+                
                 axes[self.config.kernel_sizes[i]-1].set_xlabel('Position')
-            
+
                 plt.savefig(f'Layer_{i}.jpg')
-                #plt.clf()

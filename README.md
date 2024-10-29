@@ -6,9 +6,12 @@ This is mostly for my offline usage, to take notes and remember what to do next.
 
 ### Priority 1:
 
-- Finish code for CSnnNext
+- Do some Tests for CSnnNext (for potential bugs)
+- Launch multiple runs with a fast-to-run config to get some first results with CSnnNext
 
 ### Priority 2: 
+
+- Change sigmas wandb plotting in model.py to all sigmas instead of just the first stage sigma 
 
 
 ### Notes:

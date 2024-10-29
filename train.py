@@ -1,10 +1,7 @@
 import torch
 
 import data, utils
-from csnn1d import CSNN1d
-from csnn1d_delays import CSNN1d_Delays
-from dwsep_csnn_delays import DwSep_CSNN1d_Delays
-from csnn1d_axonal_delays import CSNN1d_Axonal_Delays
+from csnnext_delays import CSnnNext_delays
 from config import Config
 
 
@@ -13,17 +10,9 @@ print(f"\n=====> Device = {device} \n\n")
 
 config = Config()
 
-if config.model_type == 'csnn-1d':
-    model = CSNN1d(config).to(device)
 
-elif config.model_type == 'csnn-1d-delays':
-    model = CSNN1d_Delays(config).to(device)
-
-elif config.model_type == 'dwsep-csnn-1d-delays':
-    model = DwSep_CSNN1d_Delays(config).to(device)
-
-elif config.model_type == 'csnn-axonal-delays':
-    model = CSNN1d_Axonal_Delays(config).to(device)
+if config.model_type == 'csnnext-delays':
+    model = CSnnNext_delays(config).to(device)
 
 
 
