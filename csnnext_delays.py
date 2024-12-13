@@ -14,7 +14,7 @@ from DCLS.construct.modules import Dcls2_1d
 
 from model import Model
 from utils import set_seed
-
+    
 
 
 
@@ -82,25 +82,28 @@ class CSnnNext_delays(Model):
                     # Pad time dimension before the DCLS layer
                     Pad(self.config.left_paddings[i], self.config.right_paddings[i], self.config.kernel_sizes[i]),
 
-
                     Dcls2_1d(in_channels = self.config.channels[i], out_channels = self.config.channels[i], kernel_count = self.config.kernel_count,
                              stride = (self.config.strides[i], 1), dense_kernel_size = self.config.kernel_sizes[i], 
                              dilated_kernel_size = self.config.max_delays[i], bias = self.config.bias, version = self.config.DCLSversion,
                              groups = self.config.channels[i]),
 
-                    nn.Conv2d(in_channels=self.config.channels[i], out_channels=self.config.channels[i], kernel_size=(1,1), stride=1),
 
-                    Permute(3, 0, 1, 2)
-                    #(time, batch, channels, neurons)
+
+                    # Uncomment to use Linear implementation of pointwise
+                    Permute(0, 2, 3, 1),        # => (Batch, Neurons, Time, Channels)
+                    nn.Linear(self.config.channels[i], 4 * self.config.channels[i]),
+                    Permute(2, 0, 3, 1), # => (time, batch, channels, neurons)
+                    
+                    
+                    #nn.Conv2d(in_channels=self.config.channels[i], out_channels = 4 * self.config.channels[i], kernel_size=(1,1), stride=1),
+                    #Permute(3, 0, 1, 2)     # => (time, batch, channels, neurons)
                 ]
 
 
-                # Add BN and Neuron model according to config
-                
                 if self.config.batchnorm_type == 'SJ_bn1d':
-                    block.append(layer.BatchNorm1d(num_features = self.config.channels[i], step_mode='m'))
-                
+                    block.append(layer.BatchNorm1d(num_features = 4 * self.config.channels[i], step_mode='m'))
 
+                # Add non-linearity:
                 if self.config.spiking_neuron_type == 'lif': 
                     block.append(neuron.LIFNode(tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
                                                         surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
@@ -109,6 +112,23 @@ class CSnnNext_delays(Model):
                     block.append(neuron.ParametricLIFNode(init_tau=self.config.init_tau, v_threshold=self.config.v_threshold, 
                                                         surrogate_function=self.config.surrogate_function, detach_reset=self.config.detach_reset, 
                                                         step_mode='m', decay_input=False, store_v_seq = True))
+                
+
+
+                block += [
+                    
+                    # Uncomment to use Linear implementation of pointwise
+                    Permute(1, 3, 0, 2), # => (Batch, Neurons, Time, Channels)
+                    nn.Linear(4 * self.config.channels[i], self.config.channels[i]),
+                    Permute(2, 0, 3, 1), # => (time, batch, channels, neurons)
+
+
+                    #Permute(1, 2, 3, 0), #  => (batch, channels, neurons, time)
+                    #nn.Conv2d(in_channels = 4 * self.config.channels[i], out_channels = self.config.channels[i], kernel_size=(1,1), stride=1),
+                    #Permute(3, 0, 1, 2)  #  => (time, batch, channels, neurons)
+
+                ]
+
                 
                 
                 current_stage_blocks.append(block)
@@ -286,6 +306,17 @@ class CSnnNext_delays(Model):
 
 
 
+    def get_tau(self):
+
+        tau_w = []
+
+        for m in self.model.modules():
+            if isinstance(m, neuron.ParametricLIFNode):
+                tau_w.append((1. / m.w.sigmoid()).detach().cpu().item())
+        
+        return tau_w  
+
+
 
 
     def decrease_sig(self, epoch):
@@ -308,8 +339,6 @@ class CSnnNext_delays(Model):
                             for j in range(self.config.n_blocks[i]):                                                        
                                 # Make sig 0 or final_gauss_sig which is 0.23
                                 self.stages[i][j][2].SIG *= alpha_final
-
-
 
 
 

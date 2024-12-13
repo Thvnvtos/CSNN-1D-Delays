@@ -16,36 +16,46 @@ class Config:
     datasets_path = '../Datasets/SSC'
 
     time_step = 10
-    n_bins = 5
+    n_bins = 1
 
     epochs = 100
-    batch_size = 64
+    batch_size = 32
     ################################################
     #               Model Achitecture              #
     ################################################
     
-    model_type = 'dwsep-csnn-1d-delays'                               # model type could be set to : 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
+    model_type = 'csnnext-delays'                               # model type could be set to : 'csnnext-delays', 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
 
 
     spiking_neuron_type = 'lif'                                 # plif, lif
-    init_tau = 30                                              # in ms, can't be < time_step
+    init_tau = 20                                               # in ms, can't be < time_step
     init_tau = (init_tau  +  1e-9) / time_step
 
     
     n_inputs = 700
-    n_C = 64                                                   # base number of conv channels
+    n_C = 32                                                   # base number of conv channels
 
-    n_layers = 4
-    kernel_sizes =  [5, 2, 2, 2]
-    strides =       [1, 2, 2, 2]
-    channels = [n_C, 2*n_C, 4*n_C, 8*n_C]
+
+    stem_kernel_size = 7
+    stem_stride = 7
+
+    n_stages = 3
+    n_blocks = [1, 3, 1]  # [1, 1, 3, 1]
+
+    channels = [n_C, 2*n_C, 4*n_C] #[n_C, 2*n_C, 4*n_C, 8*n_C]
+
+    kernel_sizes =  [7, 7, 7]  # [7, 7, 5, 5]
+    strides =       [1, 1, 1]
+    downsampling_kernel_sizes = [2, 2]
+    downsampling_strides = [2, 2]
+    
 
     n_outputs = 20 if dataset == 'shd' else 35
 
-    batchnorm_type = 'bn1'                                      # 'bn1' = 1D BN ignoring time, 'bn2' = 2D BN considering (Freqs, Time) as the 2 dimensions (Maybe add SNN specific BNs next)
+    batchnorm_type = 'SJ_bn1d'                                      # 'bn1' = 1D BN ignoring time, 'bn2' = 2D BN considering (Freqs, Time) as the 2 dimensions (Maybe add SNN specific BNs next)
 
     dropout_p = 0.5
-    bias = True
+    bias = False
     detach_reset = True
 
 
@@ -65,10 +75,9 @@ class Config:
     optimizer_w = 'adam'
 
     lr_w = 1e-3
-    lr_pos = 100*lr_w   if model_type =='csnn-1d-delays' or model_type =='dwsep-csnn-1d-delays' else 0
+    lr_pos = 100*lr_w
 
-    weight_decay = 1e-5
-
+    weight_decay = 2e-5
 
     max_lr_w = 5 * lr_w
     t_max_pos = epochs
@@ -80,31 +89,26 @@ class Config:
     decrease_sig_method = 'exp'
 
     kernel_count = 1
+    
+    max_delays = [70, 90, 110] # [70, 90, 110, 130]
 
-    max_delay = 200//time_step
-    max_delay = max_delay if max_delay%2==1 else max_delay+1 # to make kernel_size an odd number
+    sigInits = [1/3, 1/3, 1/2]       #[1/3, 1/3, 1/2, 1/2] 
+    final_epoch = (1*epochs)//3     
     
 
-    sigInit = max_delay // 2        
-    final_epoch = (1*epochs)//4     
-    
-
-    left_padding = max_delay-1
-    right_padding = 0#(max_delay-1) // 2
+    left_paddings = [None] * len(max_delays)    #defined in init
+    right_paddings = [0] * len(max_delays)      #(max_delay-1) // 2
 
     init_pos_method = 'uniform'
-    init_pos_a = max_delay//2#-max_delay//2 + 1
-    init_pos_b = max_delay//2
+    init_pos_mode = 'random'            # 'random' or 'rm' (right-most)
+    init_pos_a = [None] * len(max_delays) 
+    init_pos_b = [None] * len(max_delays) 
 
     sig_final_vmax = 1e-6
     sig_final_gauss = 0.23                                      # Remember why it's specifically 0.23 for vgauss in dcls
 
-    if DCLSversion == 'gauss' and final_epoch > 0:
-        if decrease_sig_method == 'exp':
-            alpha = (sig_final_gauss/sigInit)**(1/final_epoch)
-    elif DCLSversion == 'max' and final_epoch > 0:
-        if decrease_sig_method == 'exp':
-            alpha = (sig_final_vmax/sigInit)**(1/final_epoch)
+    # Exponential decreasing coefficient, defined in init
+    alpha = [None] * len(max_delays)     
 
     #############################################
     #                      Wandb                #
@@ -115,19 +119,36 @@ class Config:
     wandb_API_key = '25f19d79982fd7c29f092981a100f187f2c706b4'
     wandb_project_name = 'CSNN-1D-Delays'
 
-    run_name = 'Max-SSC|DW-sep|RM'
-
+    run_name = 'CSnnNext-Delays|stem7|bins=1|3-stages|n_C=32'
 
     run_info = f'||{model_type}||{dataset}'
 
     wandb_run_name = run_name  + run_info + f'||seed={seed}'
     wandb_group_name = run_name + run_info
 
-    ################################################
-    #                 Fine-tuning                  #
-    ################################################
     
 
-    ################################################
-    #               Data-Augmentation              #
-    ################################################
+    def __init__(self):
+        self.max_delays = [md//self.time_step for md in self.max_delays]
+        self.max_delays = [md if md%2==1 else md+1 for md in self.max_delays]
+
+
+        self.sigInits = [md*self.sigInits[i] for i,md in enumerate(self.max_delays)]
+
+
+        self.left_paddings = [md - 1 for md in self.max_delays]
+
+        for i, md in enumerate(self.max_delays):
+            if self.init_pos_mode == 'random':
+                self.init_pos_a[i] = -md//2 + 1
+            elif self.init_pos_mode == 'rm':
+                self.init_pos_a[i] = md//2
+            self.init_pos_b[i] = md//2
+
+        for i, sig in enumerate(self.sigInits):
+            if self.DCLSversion == 'gauss' and self.final_epoch > 0:
+                if self.decrease_sig_method == 'exp':
+                    self.alpha[i] = (self.sig_final_gauss/sig)**(1/self.final_epoch)
+            elif self.DCLSversion == 'max' and self.final_epoch > 0:
+                if self.decrease_sig_method == 'exp':
+                    self.alpha[i] = (self.sig_final_vmax/sig)**(1/self.final_epoch)

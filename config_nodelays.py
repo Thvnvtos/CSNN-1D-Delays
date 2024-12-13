@@ -27,7 +27,7 @@ class Config:
     model_type = 'csnnext-delays'                               # model type could be set to : 'csnnext-delays', 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
 
 
-    spiking_neuron_type = 'lif'                                 # plif, lif
+    spiking_neuron_type = 'plif'                                 # plif, lif
     init_tau = 20                                               # in ms, can't be < time_step
     init_tau = (init_tau  +  1e-9) / time_step
 
@@ -75,7 +75,7 @@ class Config:
     optimizer_w = 'adam'
 
     lr_w = 1e-3
-    lr_pos = 100*lr_w
+    lr_pos = 0.0#100*lr_w
 
     weight_decay = 2e-5
 
@@ -90,21 +90,21 @@ class Config:
 
     kernel_count = 1
     
-    max_delays = [70, 90, 110] # [70, 90, 110, 130]
+    max_delays = [30, 30, 30]#[70, 90, 110] # [70, 90, 110, 130]
 
-    sigInits = [1/3, 1/3, 1/2]       #[1/3, 1/3, 1/2, 1/2] 
-    final_epoch = (1*epochs)//3     
+    sigInits = [0.0, 0.0, 0.0]#[1/3, 1/3, 1/2]       #[1/3, 1/3, 1/2, 1/2] 
+    final_epoch = 0#(1*epochs)//3     
     
 
     left_paddings = [None] * len(max_delays)    #defined in init
     right_paddings = [0] * len(max_delays)      #(max_delay-1) // 2
 
     init_pos_method = 'uniform'
-    init_pos_mode = 'random'            # 'random' or 'rm' (right-most)
+    init_pos_mode = 'rm'            # 'random' or 'rm' (right-most)
     init_pos_a = [None] * len(max_delays) 
     init_pos_b = [None] * len(max_delays) 
 
-    sig_final_vmax = 1e-6
+    sig_final_vmax = 0.0#1e-6
     sig_final_gauss = 0.23                                      # Remember why it's specifically 0.23 for vgauss in dcls
 
     # Exponential decreasing coefficient, defined in init
@@ -119,7 +119,7 @@ class Config:
     wandb_API_key = '25f19d79982fd7c29f092981a100f187f2c706b4'
     wandb_project_name = 'CSNN-1D-Delays'
 
-    run_name = 'stem7|bins=1|3-stages|n_C=32'
+    run_name = 'stem7|bins=1|3-stages|n_C=32|No-Delays'
 
     run_info = f'||{model_type}||{dataset}'
 
