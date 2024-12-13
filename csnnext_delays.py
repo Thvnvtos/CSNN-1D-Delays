@@ -91,11 +91,11 @@ class CSnnNext_delays(Model):
 
                     # Uncomment to use Linear implementation of pointwise
                     Permute(0, 2, 3, 1),        # => (Batch, Neurons, Time, Channels)
-                    nn.Linear(self.config.channels[i], 4 * self.config.channels[i]),
+                    nn.Linear(self.config.channels[i], 4 * self.config.channels[i], bias = self.config.bias),
                     Permute(2, 0, 3, 1), # => (time, batch, channels, neurons)
                     
                     
-                    #nn.Conv2d(in_channels=self.config.channels[i], out_channels = 4 * self.config.channels[i], kernel_size=(1,1), stride=1),
+                    #nn.Conv2d(in_channels=self.config.channels[i], out_channels = 4 * self.config.channels[i], kernel_size=(1,1), stride=1, bias = self.config.bias),
                     #Permute(3, 0, 1, 2)     # => (time, batch, channels, neurons)
                 ]
 
@@ -119,12 +119,12 @@ class CSnnNext_delays(Model):
                     
                     # Uncomment to use Linear implementation of pointwise
                     Permute(1, 3, 0, 2), # => (Batch, Neurons, Time, Channels)
-                    nn.Linear(4 * self.config.channels[i], self.config.channels[i]),
+                    nn.Linear(4 * self.config.channels[i], self.config.channels[i], bias = self.config.bias),
                     Permute(2, 0, 3, 1), # => (time, batch, channels, neurons)
 
 
                     #Permute(1, 2, 3, 0), #  => (batch, channels, neurons, time)
-                    #nn.Conv2d(in_channels = 4 * self.config.channels[i], out_channels = self.config.channels[i], kernel_size=(1,1), stride=1),
+                    #nn.Conv2d(in_channels = 4 * self.config.channels[i], out_channels = self.config.channels[i], kernel_size=(1,1), stride=1, bias = self.config.bias),
                     #Permute(3, 0, 1, 2)  #  => (time, batch, channels, neurons)
 
                 ]
@@ -194,7 +194,7 @@ class CSnnNext_delays(Model):
                 self.weights_conv.append(m.weight)
                 if self.config.bias:
                     self.weights_conv.append(m.bias)
-            elif isinstance(m, layer.Conv1d) or isinstance(m, nn.Conv2d):
+            elif isinstance(m, layer.Conv1d) or isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
                 self.weights_conv.append(m.weight)
                 if self.config.bias:
                     self.weights_conv.append(m.bias)
