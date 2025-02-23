@@ -122,6 +122,7 @@ class Model(nn.Module):
                 lr_pos = schedulers[1].get_last_lr()[0] 
 
                 sigs = self.get_sigmas()
+                taus = self.get_tau()
 
                 wandb_logs = {"Epoch":epoch,
                               "Loss_train":loss_epochs['train'][-1],
@@ -136,6 +137,9 @@ class Model(nn.Module):
 
                               "SIG" : sigs[0]
                               }
+
+                for i, tau in enumerate(taus):
+                    wandb_logs[f"tau_{i}"]= tau
 
                 wandb.log(wandb_logs)
         

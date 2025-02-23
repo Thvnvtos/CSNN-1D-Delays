@@ -10,15 +10,14 @@ class Config:
 
     seed = 0
 
-    # dataset could be set to either 'shd', 'ssc' or 'gsc', change datasets_path accordingly.
-    # ONLY SHD FOR NOW  
+    # dataset could be set to either 'shd', 'ssc' or 'gsc', change datasets_path accordingly.  
     dataset = 'shd'                    
     datasets_path = '../Datasets/SHD'
 
-    time_step = 20
-    n_bins = 5
+    time_step = 10
+    n_bins = 1
 
-    epochs = 75
+    epochs = 150
     batch_size = 32
     ################################################
     #               Model Achitecture              #
@@ -28,7 +27,7 @@ class Config:
 
 
     spiking_neuron_type = 'lif'                                 # plif, lif
-    init_tau = 20                                               # in ms, can't be < time_step
+    init_tau = 15                                               # in ms, can't be < time_step
     init_tau = (init_tau  +  1e-9) / time_step
 
     
@@ -36,16 +35,16 @@ class Config:
     n_C = 32                                                   # base number of conv channels
 
 
-    stem_kernel_size = 5
-    stem_stride = 5
+    stem_kernel_size = 7
+    stem_stride = 7
 
     n_stages = 3
-    n_blocks = [1, 3, 1]
+    n_blocks = [1, 1, 3] #[1, 1, 3, 1]
 
-    channels = [n_C, 2*n_C, 4*n_C]
+    channels = [n_C, 2*n_C, 4*n_C]# [n_C, 2*n_C, 4*n_C, 8*n_C]
 
-    kernel_sizes =  [7, 7, 7] 
-    strides =       [1, 1, 1]
+    kernel_sizes =   [7, 7, 7] #[7, 7, 7, 5] 
+    strides =       [1, 1, 1] 
     downsampling_kernel_sizes = [2, 2]
     downsampling_strides = [2, 2]
     
@@ -54,7 +53,7 @@ class Config:
 
     batchnorm_type = 'SJ_bn1d'                                      # 'bn1' = 1D BN ignoring time, 'bn2' = 2D BN considering (Freqs, Time) as the 2 dimensions (Maybe add SNN specific BNs next)
 
-    dropout_p = 0.5
+    dropout_p = 0.75  # 0.5
     bias = False
     detach_reset = True
 
@@ -75,7 +74,7 @@ class Config:
     optimizer_w = 'adam'
 
     lr_w = 1e-3
-    lr_pos = 10*lr_w
+    lr_pos = 100*lr_w
 
     weight_decay = 2e-5
 
@@ -90,9 +89,9 @@ class Config:
 
     kernel_count = 1
     
-    max_delays = [70, 70, 50]
+    max_delays = [70, 90, 110] # [70, 90, 110, 110]
 
-    sigInits = [1/3, 1/3, 1/3]      
+    sigInits = [1/3, 1/3, 1/2]       #[1/3, 1/3, 1/2, 1/2] 
     final_epoch = (1*epochs)//3     
     
 
@@ -104,7 +103,7 @@ class Config:
     init_pos_a = [None] * len(max_delays) 
     init_pos_b = [None] * len(max_delays) 
 
-    sig_final_vmax = 1e-9
+    sig_final_vmax = 1e-6
     sig_final_gauss = 0.23                                      # Remember why it's specifically 0.23 for vgauss in dcls
 
     # Exponential decreasing coefficient, defined in init
@@ -119,7 +118,7 @@ class Config:
     wandb_API_key = '25f19d79982fd7c29f092981a100f187f2c706b4'
     wandb_project_name = 'CSNN-1D-Delays'
 
-    run_name = 'CSnnNext-Delays|Baseline'
+    run_name = 'Full-SHDconf(150epochs)|Inverted_Bottleneck|CSnnNext-Delays|stem7|bins=1|3-stages|n_C=32|tau=1.5'
 
     run_info = f'||{model_type}||{dataset}'
 
