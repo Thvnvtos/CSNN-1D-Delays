@@ -32,7 +32,7 @@ class Config:
 
     
     n_inputs = 700
-    n_C = 32                                                   # base number of conv channels
+    n_C = 16                                                   # base number of conv channels
 
 
     stem_kernel_size = 7
