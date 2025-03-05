@@ -1,4 +1,6 @@
-torch>=2.0.0+cu118
-spikingjelly>=0.0.0.0.15
+torch>=2.0.0
+torchaudio
+torchvision
+spikingjelly
 dcls>=0.1.1
 h5py>=3.11.0
