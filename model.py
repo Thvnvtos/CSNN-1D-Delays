@@ -11,7 +11,6 @@ from utils import set_seed
 from config import Config
 
 
-temp_id = str(uuid4())                      # Generate unique ID name for temporary model checkpoint file
 
 class Model(nn.Module):
     def __init__(self, config):
@@ -155,7 +154,7 @@ class Model(nn.Module):
         self.eval()
         with torch.no_grad():
 
-            self.delay_eval_mode(temp_id)                                                   # Make delay kernels into a single non-zero element kernel by rounding and making discrete (if gaussian)
+            self.delay_eval_mode()                                                   # Make delay kernels into a single non-zero element kernel by rounding and making discrete (if gaussian)
 
             loss_batch, metric_batch = [], []
             for i, (x, labels, _ ) in enumerate(tqdm(loader)):                              # _ is the length of unpadded x
@@ -176,7 +175,7 @@ class Model(nn.Module):
 
                 self.reset_model(train=False)
 
-            self.delay_train_mode(temp_id)                                                  # Convert the model back to kernels with multiple non-zero elements (non round positions and sig>0)
+            self.delay_train_mode()                                                  # Convert the model back to kernels with multiple non-zero elements (non round positions and sig>0)
         
         return np.mean(loss_batch), np.mean(metric_batch)
     
