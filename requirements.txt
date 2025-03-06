@@ -1,4 +1,6 @@
-torch>=2.0.0+cu118
-spikingjelly>=0.0.0.0.15
-dcls>=0.1.1
+torch>=2.0.0
+torchaudio
+torchvision
+spikingjelly @ git+https://github.com/fangwei123456/spikingjelly@master
+dcls @ git+https://github.com/K-H-Ismail/Dilated-Convolution-with-Learnable-Spacings-PyTorch@main
 h5py>=3.11.0
