@@ -370,61 +370,36 @@ class CSnnNext_delays(Model):
 
         return schedulers
 
-
-
-
-
-
     def round_pos(self):
+        self.saved_P = [[None for _ in range(self.config.n_blocks[i])] for i in range(self.config.n_stages)]
         with torch.no_grad():
             for i in range(self.config.n_stages):
                 for j in range(self.config.n_blocks[i]):
+                    self.saved_P[i][j] = self.stages[i][j][2].P
                     self.stages[i][j][2].P.round_()
                     self.stages[i][j][2].clamp_parameters()
 
-
-
-    def delay_eval_mode(self, temp_id):
-
-        torch.save(self.state_dict(), temp_id + '.pt')                                      # Save state of model
-
+    def delay_eval_mode(self):
+        self.saved_SIG = [[None for _ in range(self.config.n_blocks[i])] for i in range(self.config.n_stages)]
         # Change each DCLS conv to discrete vmax and round positions
-        if self.config.DCLSversion in ['gauss', 'max']: 
-
+        if self.config.DCLSversion in ["gauss", "max"]:
             for i in range(self.config.n_stages):
-                for j in range(self.config.n_blocks[i]):                                          
-                    self.stages[i][j][2].version = 'max'
-                    self.stages[i][j][2].DCK.version = 'max'
+                for j in range(self.config.n_blocks[i]):
+                    self.stages[i][j][2].version = "max"
+                    self.stages[i][j][2].DCK.version = "max"
+                    self.saved_SIG[i][j] = self.stages[i][j][2].SIG
                     self.stages[i][j][2].SIG *= 0
-        
 
         self.round_pos()
 
-
-
-
-
-
-    def delay_train_mode(self, temp_id):
-
-        if self.config.DCLSversion == 'gauss':       
-
+    def delay_train_mode(self):
+        if self.config.DCLSversion == "gauss":
             for i in range(self.config.n_stages):
                 for j in range(self.config.n_blocks[i]):
-                    self.stages[i][j][2].version = 'gauss'
-                    self.stages[i][j][2].DCK.version = 'gauss'
-
-
-        self.load_state_dict(torch.load(temp_id + '.pt'), strict=True)
-        if os.path.exists(temp_id + '.pt'):
-            os.remove(temp_id + '.pt')
-        else:
-            print(f"File '{temp_id + '.pt'}' does not exist.")
-
-
-
-
-
+                    self.stages[i][j][2].version = "gauss"
+                    self.stages[i][j][2].DCK.version = "gauss"
+                    self.stages[i][j][2].P = self.saved_P[i][j]
+                    self.stages[i][j][2].SIG = self.saved_SIG[i][j]
 
     def save_pos_distribution(self, path):
         with torch.no_grad():
