@@ -70,8 +70,16 @@ class CSnnNext_delays(Model):
 
         ################################################   Hidden Layers - Stages    #######################################################
 
+        
         for i in range(self.config.n_stages):
             current_stage_blocks = []
+            
+            if self.config.inverted_bottleneck:
+                intermediary_channels = 4 * self.config.channels[i]
+            else:
+                intermediary_channels = self.config.channels[i]
+            
+            
             for j in range(self.config.n_blocks[i]):
             
                 block = [
@@ -91,17 +99,19 @@ class CSnnNext_delays(Model):
 
                     # Uncomment to use Linear implementation of pointwise
                     Permute(0, 2, 3, 1),        # => (Batch, Neurons, Time, Channels)
-                    nn.Linear(self.config.channels[i], 4 * self.config.channels[i], bias = self.config.bias),
+                    nn.Linear(self.config.channels[i], intermediary_channels, bias = self.config.bias),
                     Permute(2, 0, 3, 1), # => (time, batch, channels, neurons)
                     
                     
-                    #nn.Conv2d(in_channels=self.config.channels[i], out_channels = 4 * self.config.channels[i], kernel_size=(1,1), stride=1, bias = self.config.bias),
+                    #nn.Conv2d(in_channels=self.config.channels[i], out_channels = intermediary_channels, kernel_size=(1,1), stride=1, bias = self.config.bias),
                     #Permute(3, 0, 1, 2)     # => (time, batch, channels, neurons)
                 ]
 
 
+
+
                 if self.config.batchnorm_type == 'SJ_bn1d':
-                    block.append(layer.BatchNorm1d(num_features = 4 * self.config.channels[i], step_mode='m'))
+                    block.append(layer.BatchNorm1d(num_features = intermediary_channels, step_mode='m'))
 
                 # Add non-linearity:
                 if self.config.spiking_neuron_type == 'lif': 
@@ -114,20 +124,17 @@ class CSnnNext_delays(Model):
                                                         step_mode='m', decay_input=False, store_v_seq = True))
                 
 
+                if self.config.inverted_bottleneck:
+                    block += [
+                        # Uncomment to use Linear implementation of pointwise
+                        Permute(1, 3, 0, 2), # => (Batch, Neurons, Time, Channels)
+                        nn.Linear(intermediary_channels, self.config.channels[i], bias = self.config.bias),
+                        Permute(2, 0, 3, 1), # => (time, batch, channels, neurons)
 
-                block += [
-                    
-                    # Uncomment to use Linear implementation of pointwise
-                    Permute(1, 3, 0, 2), # => (Batch, Neurons, Time, Channels)
-                    nn.Linear(4 * self.config.channels[i], self.config.channels[i], bias = self.config.bias),
-                    Permute(2, 0, 3, 1), # => (time, batch, channels, neurons)
-
-
-                    #Permute(1, 2, 3, 0), #  => (batch, channels, neurons, time)
-                    #nn.Conv2d(in_channels = 4 * self.config.channels[i], out_channels = self.config.channels[i], kernel_size=(1,1), stride=1, bias = self.config.bias),
-                    #Permute(3, 0, 1, 2)  #  => (time, batch, channels, neurons)
-
-                ]
+                        #Permute(1, 2, 3, 0), #  => (batch, channels, neurons, time)
+                        #nn.Conv2d(in_channels = intermediary_channels, out_channels = self.config.channels[i], kernel_size=(1,1), stride=1, bias = self.config.bias),
+                        #Permute(3, 0, 1, 2)  #  => (time, batch, channels, neurons)
+                    ]
 
                 
                 
@@ -375,7 +382,7 @@ class CSnnNext_delays(Model):
         with torch.no_grad():
             for i in range(self.config.n_stages):
                 for j in range(self.config.n_blocks[i]):
-                    self.saved_P[i][j] = self.stages[i][j][2].P
+                    self.saved_P[i][j] = self.stages[i][j][2].P.clone()
                     self.stages[i][j][2].P.round_()
                     self.stages[i][j][2].clamp_parameters()
 
@@ -387,19 +394,25 @@ class CSnnNext_delays(Model):
                 for j in range(self.config.n_blocks[i]):
                     self.stages[i][j][2].version = "max"
                     self.stages[i][j][2].DCK.version = "max"
-                    self.saved_SIG[i][j] = self.stages[i][j][2].SIG
+                    self.saved_SIG[i][j] = self.stages[i][j][2].SIG.clone()
                     self.stages[i][j][2].SIG *= 0
 
         self.round_pos()
 
     def delay_train_mode(self):
-        if self.config.DCLSversion == "gauss":
-            for i in range(self.config.n_stages):
-                for j in range(self.config.n_blocks[i]):
+        
+        for i in range(self.config.n_stages):
+            for j in range(self.config.n_blocks[i]):
+                
+                if self.config.DCLSversion == "gauss":
                     self.stages[i][j][2].version = "gauss"
                     self.stages[i][j][2].DCK.version = "gauss"
-                    self.stages[i][j][2].P = self.saved_P[i][j]
-                    self.stages[i][j][2].SIG = self.saved_SIG[i][j]
+                
+                self.stages[i][j][2].P.copy_(self.saved_P[i][j])
+                if self.config.DCLSversion != "v1":
+                    self.stages[i][j][2].SIG.copy_(self.saved_SIG[i][j])
+
+
 
     def save_pos_distribution(self, path):
         with torch.no_grad():

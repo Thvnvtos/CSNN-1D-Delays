@@ -17,22 +17,22 @@ class Config:
     time_step = 10
     n_bins = 1
 
-    epochs = 150
+    epochs = 100
     batch_size = 32
     ################################################
     #               Model Achitecture              #
     ################################################
     
     model_type = 'csnnext-delays'                               # model type could be set to : 'csnnext-delays', 'csnn-1d', 'csnn-1d-delays' or 'dwsep-csnn-1d-delays'
-
+    inverted_bottleneck = False
 
     spiking_neuron_type = 'lif'                                 # plif, lif
-    init_tau = 15                                               # in ms, can't be < time_step
+    init_tau = 20                                               # in ms, can't be < time_step
     init_tau = (init_tau  +  1e-9) / time_step
 
     
     n_inputs = 700
-    n_C = 16                                                   # base number of conv channels
+    n_C = 32                                                   # base number of conv channels
 
 
     stem_kernel_size = 7
@@ -53,7 +53,7 @@ class Config:
 
     batchnorm_type = 'SJ_bn1d'                                      # 'bn1' = 1D BN ignoring time, 'bn2' = 2D BN considering (Freqs, Time) as the 2 dimensions (Maybe add SNN specific BNs next)
 
-    dropout_p = 0.75  # 0.5
+    dropout_p = 0.75  # 0.75
     bias = False
     detach_reset = True
 
@@ -89,9 +89,9 @@ class Config:
 
     kernel_count = 1
     
-    max_delays = [70, 90, 110] # [70, 90, 110, 110]
+    max_delays = [70, 70, 90] # [70, 90, 110, 110]
 
-    sigInits = [1/3, 1/3, 1/2]       #[1/3, 1/3, 1/2, 1/2] 
+    sigInits = [1/4, 1/4, 1/3]       #[1/3, 1/3, 1/2, 1/2] 
     final_epoch = (1*epochs)//3     
     
 
@@ -118,7 +118,7 @@ class Config:
     wandb_API_key = '25f19d79982fd7c29f092981a100f187f2c706b4'
     wandb_project_name = 'CSNN-1D-Delays'
 
-    run_name = 'Full-SHDconf(150epochs)|Inverted_Bottleneck|CSnnNext-Delays|stem7|bins=1|3-stages|n_C=32|tau=1.5'
+    run_name = 'SHD-NoInv-Baseline'
 
     run_info = f'||{model_type}||{dataset}'
 
